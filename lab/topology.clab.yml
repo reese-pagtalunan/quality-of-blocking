@@ -1,0 +1,112 @@
+# containerlab topology for the QoB "step #2" validation lab.
+#
+# Pipeline (matches plan §3.1 — all OSS, arm64-friendly):
+#   src host → router (S/RTBH: uRPF + blackhole) → tgt host
+#   router → NetFlow v9 → goflow2 (decode → JSON file) → Fluentd → Elasticsearch
+#   → our flow_es.py (verify.py)
+#
+# Control/collector plane uses the containerlab mgmt network (nodes reach each
+# other by short name / fixed mgmt IPs). Only the DATA path under test
+# (src↔router↔tgt) uses explicit data links.
+#
+# Deploy:   sudo containerlab deploy -t lab/topology.clab.yml
+# Destroy:  sudo containerlab destroy -t lab/topology.clab.yml
+#
+# NOTE: starting scaffold; image tags / CLI flags may need local tweaks.
+# See lab/README.md (incl. the macOS/Apple-Silicon section + accounting caveat).
+
+name: qob-rtbh
+
+mgmt:
+  network: qob_mgmt
+  ipv4-subnet: 172.20.20.0/24
+
+topology:
+  nodes:
+    # --- Router under test: FRR (BGP/RTBH) + softflowd (NetFlow export) -------
+    router:
+      kind: linux
+      image: qob/rtbh-router:latest      # built from lab/router/Dockerfile
+      mgmt-ipv4: 172.20.20.11
+      binds:
+        - router/frr.conf:/etc/frr/frr.conf
+        - router/daemons:/etc/frr/daemons
+        - router/setup.sh:/setup.sh
+      exec:
+        - bash /setup.sh                 # exports NetFlow to goflow2 (172.20.20.13)
+
+    # --- Test source S (the "attacker" we will blackhole by source) ----------
+    src:
+      kind: linux
+      image: qob/traffic:latest          # built from lab/test/Dockerfile (nping)
+      mgmt-ipv4: 172.20.20.21
+      exec:
+        - ip addr add 10.0.1.66/24 dev eth1
+        - ip route add 10.0.2.0/24 via 10.0.1.1
+
+    # --- Target T (victim/honeypot) ------------------------------------------
+    tgt:
+      kind: linux
+      image: qob/traffic:latest
+      mgmt-ipv4: 172.20.20.22
+      exec:
+        - ip addr add 10.0.2.66/24 dev eth1
+        - ip route add 10.0.1.0/24 via 10.0.2.1
+
+    # --- RTBH trigger: ExaBGP (stands in for bhr-client-exabgp) ---------------
+    exabgp:
+      kind: linux
+      image: ghcr.io/exa-networks/exabgp:4.2.21
+      mgmt-ipv4: 172.20.20.12
+      binds:
+        - exabgp/exabgp.conf:/etc/exabgp/exabgp.conf
+        - exabgp/blackhole.sh:/blackhole.sh
+      cmd: exabgp /etc/exabgp/exabgp.conf
+
+    # --- Collector: goflow2 decodes NetFlow -> JSON to a shared file ----------
+    goflow2:
+      kind: linux
+      image: netsampler/goflow2:v2.1.5
+      mgmt-ipv4: 172.20.20.13
+      binds:
+        - .data/flows:/var/log/goflow2          # shared with fluentd
+      cmd: >-
+        -listen netflow://:2055
+        -format json
+        -transport file
+        -transport.file /var/log/goflow2/flows.json
+
+    # --- Shipper: Fluentd tails goflow2 JSON -> Elasticsearch -----------------
+    fluentd:
+      kind: linux
+      image: qob/fluentd-es:latest            # built from lab/fluentd/Dockerfile
+      mgmt-ipv4: 172.20.20.15
+      binds:
+        - .data/flows:/var/log/goflow2          # same shared dir (tail source)
+        - fluentd/fluent.conf:/fluentd/etc/fluent.conf
+
+    # --- Store: Elasticsearch single node ------------------------------------
+    elasticsearch:
+      kind: linux
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+      mgmt-ipv4: 172.20.20.14
+      ports:
+        - 9200:9200
+      env:
+        discovery.type: single-node
+        xpack.security.enabled: "false"
+        ES_JAVA_OPTS: -Xms1g -Xmx1g
+
+    # --- UI: Kibana (open http://localhost:5601, no login — security off) -----
+    kibana:
+      kind: linux
+      image: docker.elastic.co/kibana/kibana:8.15.0
+      mgmt-ipv4: 172.20.20.16
+      ports:
+        - 5601:5601
+      env:
+        ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+
+  links:
+    - endpoints: ["src:eth1", "router:eth1"]     # ingress under uRPF
+    - endpoints: ["router:eth2", "tgt:eth1"]      # egress toward victim

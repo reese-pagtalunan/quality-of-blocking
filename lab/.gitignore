@@ -1,0 +1,5 @@
+# Runtime data (goflow2 JSON spool shared with Fluentd) + clab state
+.data/
+clab-qob-rtbh/
+*.clab.yml.bak
+.containerlab/

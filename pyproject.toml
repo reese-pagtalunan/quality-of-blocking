@@ -1,0 +1,23 @@
+[project]
+name = "quality-of-blocking"
+version = "0.1.0"
+description = "Per-IP Quality of Blocking (QoB) score from black-hole router flow telemetry correlated with honeypot block lists."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+es = ["elasticsearch>=8.0"]
+
+[project.scripts]
+compute-qob = "jobs.compute_qob:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["qob", "qob.ingest", "jobs", "collectors"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

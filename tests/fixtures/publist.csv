@@ -1,0 +1,4 @@
+cidr,indicator_id,source,why,added,removed,ident
+185.12.34.56/32,ind-0001,CHN,SSH brute force,2026-06-10T00:00:00Z,2026-06-11T00:00:00Z,exabgp
+203.0.113.50/32,ind-0002,CHN,SSH brute force,2026-06-10T01:00:00Z,,exabgp
+198.51.100.10/32,ind-0003,CHN,Telnet brute force,2026-06-10T02:00:00Z,2026-06-10T06:00:00Z,exabgp

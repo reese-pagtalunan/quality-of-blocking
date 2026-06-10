@@ -1,0 +1,27 @@
+# QoB source configuration (Option 1 — flow-based counting).
+# Deployment is SOURCE-BASED RTBH (S/RTBH via uRPF): attacker = flow source.
+
+rtbh_direction: source        # source | destination  (we use source)
+join_field: src_ip            # derived from rtbh_direction
+window_seconds: 300
+
+# BHR blocked-IP list (the authoritative join key).
+blocklist:
+  # Either a live endpoint (Phase 2) or a captured snapshot (Phase 1).
+  source: publist_csv         # publist_csv | query_limited | file
+  url: https://bhr.example.edu/bhr/publist.csv
+  # token: ${BHR_TOKEN}       # only needed for authenticated query endpoints
+
+# Flow exporters on the RTBH-handling routers. Sampling is accepted for v1;
+# record the rate so counts can be scaled.
+flow_exporters:
+  - device: rtr1
+    kind: ipfix              # ipfix | netflow9 | sflow
+    sampling_rate: 1000      # 1 == unsampled
+  - device: rtr2
+    kind: ipfix
+    sampling_rate: 1000
+
+collector:
+  kind: nfdump              # nfdump | goflow2
+  path: /var/cache/nfdump   # rotated nfcapd files

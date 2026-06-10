@@ -1,0 +1,22 @@
+{
+  "index_patterns": ["qob-flow-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp":     { "type": "date" },
+        "src_addr":       { "type": "ip" },
+        "dst_addr":       { "type": "ip" },
+        "src_port":       { "type": "integer" },
+        "dst_port":       { "type": "integer" },
+        "proto":          { "type": "keyword" },
+        "packets":        { "type": "long" },
+        "bytes":          { "type": "long" },
+        "sampling_rate":  { "type": "long" }
+      }
+    }
+  }
+}
