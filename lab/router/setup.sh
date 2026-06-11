@@ -27,8 +27,19 @@ echo "[setup] starting FRR"
 sleep 2
 
 echo "[setup] starting softflowd on ${INGRESS_IF} -> ${COLLECTOR_IP}:${NETFLOW_PORT} (NetFlow v9)"
+# -d : run in the foreground (do NOT self-daemonize). In this container, letting
+#      softflowd daemonize leaves a <defunct> zombie (PID 1 doesn't reap the
+#      double-forked child), so we run it foreground and background it ourselves
+#      with nohup + & so it survives after this exec session ends.
 # -v 9: NetFlow v9 ; -t maxlife=5: flush flows quickly so test windows are tight.
 # -s 1: no sampling in-lab (the REAL exporters sample; we add scaling in code).
-softflowd -i "${INGRESS_IF}" -n "${COLLECTOR_IP}:${NETFLOW_PORT}" -v 9 -t maxlife=5 -s 1
+nohup softflowd -d -i "${INGRESS_IF}" -n "${COLLECTOR_IP}:${NETFLOW_PORT}" \
+    -v 9 -t maxlife=5 -s 1 >/var/log/softflowd.log 2>&1 &
+sleep 1
 
-echo "[setup] done. softflowd running; FRR up."
+if pgrep softflowd >/dev/null; then
+  echo "[setup] done. softflowd running (log: /var/log/softflowd.log); FRR up."
+else
+  echo "[setup] ERROR: softflowd failed to start; see /var/log/softflowd.log" >&2
+  cat /var/log/softflowd.log >&2 || true
+fi

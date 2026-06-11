@@ -269,6 +269,24 @@ dedupe guard, goflow2 parse). **18 passing.**
 
 **Exit:** Deterministic per-IP counts from captured/fake data. ✅
 
+### Phase 1b — End-to-end lab on real NetFlow — DONE
+
+The `lab/` containerlab topology was deployed and the full path validated on a
+**real NetFlow stream** (not fixtures): `src → router (S/RTBH: strict uRPF +
+recursive blackhole) → softflowd NetFlow v9 → goflow2 → consumer
+(qob.flow_redis) → Redis (TTL counters) → RedisInsight`. The A/B test produced
+`qob:hits/bytes/rank/meta` keys for the blocked source with the expected TTL.
+
+Operational learnings (folded into `lab/README.md` + `setup.sh`):
+
+- softflowd must run as a **single** foreground+`nohup` process — self-daemonizing
+  left a `<defunct>` zombie (no flow); duplicate manual starts multiply counts.
+- As expected, softflowd's libpcap tap sees packets **pre-drop**, so Phase B
+  still counts. This validates the pipeline + code but **not** hardware
+  accounting order — that still needs Cisco-native FNF (see lab "Cisco variant").
+
+**Exit:** QoB counters populate in Redis from live NetFlow through prod code. ✅
+
 ### Phase 2 — Production wiring (1–2 weeks)
 
 - Run the **consumer** against live goflow2 output; confirm goflow2 JSON keys.

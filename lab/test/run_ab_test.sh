@@ -29,8 +29,21 @@ SPORT="${SPORT:-40001}"     # fixed src port → isolate this flow
 REDIS_HOST="${REDIS_HOST:-localhost}"
 REDIS_PORT="${REDIS_PORT:-6379}"
 
+# Pick a Python that has the `redis` client. Prefer the repo venv by ABSOLUTE
+# path so this works even under `sudo` (which resets PATH/VIRTUAL_ENV and would
+# otherwise fall back to the system python without `redis`). Override with PY=...
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+PY="${PY:-}"
+if [ -z "${PY}" ]; then
+  if [ -x "${REPO_ROOT}/.venv/bin/python" ]; then
+    PY="${REPO_ROOT}/.venv/bin/python"
+  else
+    PY="python3"
+  fi
+fi
+
 VERIFY () {
-  python3 "$(dirname "$0")/verify.py" \
+  "${PY}" "$(dirname "$0")/verify.py" \
       --redis-host "${REDIS_HOST}" --redis-port "${REDIS_PORT}" \
       --src "${SRC_IP}" --days 7 --label "$1"
 }
