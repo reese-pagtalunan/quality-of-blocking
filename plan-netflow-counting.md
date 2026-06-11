@@ -75,14 +75,16 @@ flowchart TD
     end
 
     subgraph MEASURE["Measurement plane (NEW)"]
-        EXP["Flow exporters on edge routers<br/>IPFIX / NetFlow v9 (prefer unsampled)"]
-        COL["Flow collector<br/>goflow2 / nfdump / pmacct"]
-        CORR["Correlator job<br/>join flows ⋈ blocked-IP list<br/>by IP + time window"]
-        STORE[("QoB store<br/>bh_hits, bh_bytes per (ip, window)")]
+        EXP["Flow exporters on edge routers<br/>IPFIX / NetFlow v9 (sampling OK)"]
+        COL["goflow2<br/>decode → JSON"]
+        CORR["Consumer<br/>join flows ⋈ blocked-IP list<br/>by src_ip + time window, ×sampling"]
+        STORE[("Redis (TTL ~7d)<br/>hits/bytes per (ip, day) + rank ZSET")]
+        VIEW["RedisInsight<br/>top blocked IPs by dropped pkts"]
         RTR -. export ingress flows .-> EXP
         EXP --> COL --> CORR
         BHR --> CORR
         CORR --> STORE
+        STORE --> VIEW
     end
 
     STORE --> QOB["QoB impact_score<br/>(accuracy-tagged)"]
@@ -90,7 +92,7 @@ flowchart TD
     classDef ctrl fill:#064e3b,stroke:#6ee7b7,color:#fff
     classDef meas fill:#1e3a8a,stroke:#93c5fd,color:#fff
     class STG,EXA,RTR,BHR ctrl
-    class EXP,COL,CORR,STORE,QOB meas
+    class EXP,COL,CORR,STORE,VIEW,QOB meas
 ```
 
 
@@ -118,51 +120,56 @@ after the forwarding decision).
 
 ---
 
-## 3.1 Collector decision: goflow2 → Fluentd → Elasticsearch (chosen)
+## 3.1 Collector + store decision: goflow2 → consumer → Redis (ES off the flow path)
 
-We are ES-heavy (STINGAR/Cowrie evidence lives in Elasticsearch), so flow must
-land in ES. But "depends on ES" does **not** require ElastiFlow — the collector
-only decodes flow; shipping to ES is a separate step we already own via
-**Fluentd**. Since flow here is purely a **QoB input** (we need only
-`src_ip, packets, bytes, sampling, timestamp`, not org-wide dashboards), the
-batteries-included enrichment/dashboards of ElastiFlow aren't needed.
+Flow telemetry is a **QoB input only** (we need `src_ip, packets, bytes,
+sampling, timestamp` — not raw-flow drill-down or org-wide dashboards) and is
+**useless after ~7 days**. Pointing that high-churn firehose at Elasticsearch
+would tax the **cluster** (indexing load) and disk, even with ILM. So we keep
+flow **off ES entirely** and aggregate at ingest into **Redis** (already in the
+stack via hpfeeds-bhr), with a **per-key TTL** that *is* the 7-day retention.
 
-**Chosen:** **goflow2** (OSS, arm64-friendly, no throughput cap) decodes
-NetFlow/IPFIX/sFlow → JSON; **Fluentd** ships to the existing **Elasticsearch**.
+**Chosen:** **goflow2** (OSS, arm64) decodes NetFlow/IPFIX/sFlow → JSON; a small
+**consumer** joins against the BHR blocked set and writes **Redis** counters.
+Counts/rankings are read back for serving (and viewed via **RedisInsight**).
 
 ```text
-Routers ──NetFlow/IPFIX/sFlow──▶ goflow2 ──JSON──▶ Fluentd ──▶ Elasticsearch
- (exporter)                       (decode)         (ship; ours)      │
-                                                                     ▼
-                                                            qob.ingest.flow_es
+Routers ──NetFlow/IPFIX/sFlow──▶ goflow2 ──JSON──▶ consumer ──▶ Redis (TTL 7d)
+ (exporter)                       (decode)          • join src ⋈ BHR blocked set
+                                                    • window + ×sampling_rate
+                                                    • INCRBY / ZINCRBY / EXPIRE
+   Elasticsearch: NOT in the flow path ✅           qob.ingest.flow_redis
 ```
 
-**Aggregation runs in ES, not Python.** `flow_es.py` builds a
-`terms(src_ip) → date_histogram(window) → sum(packets)/sum(bytes)/max(sampling)`
-query filtered to the blocked source IPs, and reads back small per-`(ip, window)`
-buckets. Scales at attack volume where pulling raw flows into Python would not.
+**Aggregate-at-ingest** is the key move: volume affects only consumer throughput,
+not storage (a million flows and a thousand collapse to the same per-IP/day
+keys). Throughput knobs: exporter **sampling**, **horizontally scale** the
+consumer (shard by src IP), optional **goflow2 → Kafka** buffer at very high
+rates.
 
 Decisions / caveats locked in:
 
-- **Field schema:** use `flow_es.GOFLOW2_FIELD_MAP` (`src_addr`, `packets`,
-`bytes`, `sampling_rate`, `@timestamp`). **Map `src_addr` as ES `ip` type** (via
-index template) so CIDR `term` filtering + the `terms` agg work; otherwise fall
-back to exact `.keyword` match (fine for `/32` blocks).
-- **Fluentd:** `in_tail`/forward goflow2 JSON → `out_elasticsearch` into an
-`elastiflow-flow-*`-shaped index; set `@timestamp` from `time_flow_start_ns`.
-- **Sampling:** sum raw counts per window, take `max(sampling_rate)` as the rate,
-scale in Python (avoids ES runtime scripts; matches CSV semantics).
-- **Active-window filter:** ES sums all docs in range, so each bucket is
-post-filtered through `BlockedSet.match(ip, window_start)` to honor per-IP
-`block_start`/`block_end` and attach `indicator_id` from BHR.
-- **Dedup caveat (IMPORTANT):** the ES agg path **sums multi-router duplicate
-flows**. Dedupe **upstream** (at goflow2/Fluentd, or key on a unique flow id)
-before trusting absolute counts. Relative ranking is unaffected if uniform.
-- **Reversible:** `flow_es.EsFieldMap` decouples code from collector — switching
-to ElastiFlow later (if org-wide flow analytics is wanted) is a config change,
-not a code change.
+- **Code:** `flow_redis.RedisQobStore` + `ingest_flows()` reuse
+  `join_flows.correlate` (same join/window/sampling logic), writing per-`(ip,
+  day)` counters + a `rank` sorted set. `flow_counters.flow_from_goflow2()`
+  parses goflow2's native JSON.
+- **Key schema:** `qob:hits:{ip}:{YYYYMMDD}`, `qob:bytes:...`,
+  `qob:rank:{day}` (ZSET), `qob:meta:{ip}` — all with TTL (default 8 days so a
+  rolling 7-day sum is safe).
+- **Sampling:** counts scaled by `sampling_rate` at write time (tagged in the
+  ImpactCount; estimates accepted for v1).
+- **Active-window filter:** `BlockedSet.match(ip, window_start)` honors per-IP
+  `block_start`/`block_end` and attaches `indicator_id` from BHR.
+- **Dedup:** within a batch via `correlate(dedupe=True)`; across batches /
+  multi-router use `RedisQobStore.seen_flow()` (SET NX EX guard).
+- **Durability:** counts are client-facing → enable Redis **AOF** (or RDB) so a
+  restart doesn't lose the week.
+- **Visualization:** **RedisInsight** (no Kibana on the flow path).
+- **Reversible:** `flow_es.py` (ES aggregation) is retained as an OPTIONAL
+  alternative if org-wide flow analytics is ever wanted — switching store is
+  contained to the ingest/serving layer.
 - **CSV harness retained:** `flow_counters.py` (nfdump CSV) stays as the
-hardware-free test/replay path and dedupes flows.
+  hardware-free test/replay path and dedupes flows.
 
 ---
 
@@ -174,9 +181,10 @@ hardware-free test/replay path and dedupes flows.
 | Telemetry type    | IPFIX, NetFlow v9, sFlow                                  | **Whatever the routers already export**; IPFIX/NetFlow v9 preferred, sFlow fine for v1                                         |
 | Sampling          | 1:1 (unsampled) vs 1:N                                    | **Sampling accepted.** Record `sampling_rate` and scale counts by it                                                           |
 | Direction key     | match on `src_ip` vs `dst_ip`                             | `**src_ip`** — deployment is source-based RTBH (S/RTBH); blocked entry is the attacker                                         |
-| Collector         | goflow2→Kafka, nfdump (nfcapd), pmacct, **ElastiFlow→ES** | **ElastiFlow → Elasticsearch** (we are ES-heavy; see §3.1). **nfdump CSV** kept as the offline test/replay harness             |
-| Correlation locus | in Python vs in Elasticsearch                             | **in ES** for production (`terms(src_ip)→date_histogram→sum`); Python for CSV replay                                           |
-| Dedup             | same flow seen on N routers                               | CSV path dedupes by flow identity; **ES agg path does NOT** (see §3.1 caveat) — dedupe upstream at the collector / via flow id |
+| Collector         | goflow2, nfdump (nfcapd), pmacct, ElastiFlow             | **goflow2 → consumer** (OSS, arm64; see §3.1). **nfdump CSV** kept as the offline test/replay harness                         |
+| Store             | Elasticsearch vs **Redis (TTL)** vs flat files          | **Redis**, aggregate-at-ingest, per-key 7d TTL (§3.1). Keeps the flow firehose off the ES cluster. `flow_es.py` optional      |
+| Correlation locus | in Python (consumer) vs in Elasticsearch                 | **in the consumer** (`join_flows.correlate`); ES agg path retained as optional alt                                            |
+| Dedup             | same flow seen on N routers                               | within batch via `correlate(dedupe=True)`; across batches/multi-router via `RedisQobStore.seen_flow()` (SET NX EX)            |
 | Window            | align to block episode vs fixed buckets                   | fixed **5–15 min** buckets, rolled up to 24h/7d, clipped to `[block_start, block_end]`                                         |
 
 
@@ -191,15 +199,16 @@ quality-of-blocking/
     ├── scoring.py              # DONE: impact_score(bh_hits, bh_bytes)
     ├── join_flows.py           # DONE: BlockedSet, dedupe, correlate (source-based)
     └── ingest/
-        ├── flow_counters.py    # DONE: nfdump/CSV replay → FlowRecord (test harness, dedupes)
-        ├── flow_es.py          # DONE: ElastiFlow/ES aggregation → ImpactCount (production)
+        ├── flow_counters.py    # DONE: nfdump/CSV + goflow2-JSON → FlowRecord (test harness, dedupes)
+        ├── flow_redis.py       # DONE: RedisQobStore + ingest_flows (CHOSEN store, TTL serving)
+        ├── flow_es.py          # DONE: ES aggregation → ImpactCount (OPTIONAL alternative)
         └── bhr_list.py         # DONE: blocked-IP list (publist.csv / query_limited)
 jobs/
 └── compute_qob.py             # DONE: CLI, --source csv|es
 collectors/
 └── poll_flows.py              # STUB: Phase 2 scheduled reader / store writes
 config/
-└── sources.yaml.example       # DONE: rtbh_direction=source, exporters[], collector=elastiflow
+└── sources.yaml.example       # DONE: rtbh_direction=source, exporters[], collector=goflow2
 ```
 
 These feed the `impact_score` inputs in `qob/scoring.py` (`bh_hits`,
@@ -238,9 +247,9 @@ record `sampling_rate` per device (unsampled not required — just known).
 - RTBH direction confirmed **source-based (S/RTBH)** → join on `src_ip`.
 - Confirm where uRPF-dropped source traffic is accounted so flow capture
 points cover it (uRPF + asymmetric routing coverage check).
-- Collector chosen: **ElastiFlow → Elasticsearch** (§3.1); nfdump CSV kept for replay.
-- Verify ElastiFlow **licensing tier / flow-rate cap** fits sustained + peak volume.
-- Stand up an ES flow index (or confirm ElastiFlow's) and confirm field names vs `EsFieldMap`.
+- Collector chosen: **goflow2 → consumer → Redis** (§3.1); nfdump CSV kept for replay.
+- Size the consumer for peak flows/sec; confirm exporter `sampling_rate` per device.
+- Stand up Redis with **AOF/RDB** persistence; set TTL == retention (~7d).
 - Export 1 week of flow captures + BHR `publist.csv` snapshots for replay.
 
 **Exit:** For one test IP, flow-derived packet count is non-zero and within a
@@ -250,22 +259,24 @@ documented error band of an independent counter.
 
 - `bhr_list.py` — load blocked-IP list with `block_start/end`, `indicator_id`.
 - `flow_counters.py` — parse nfdump/CSV → normalized flow rows (dedupes).
-- `flow_es.py` — ES `terms→date_histogram→sum` aggregation → `ImpactCount`.
+- `flow_redis.py` — `RedisQobStore` + `ingest_flows` (chosen store, TTL serving).
+- `flow_es.py` — ES `terms→date_histogram→sum` aggregation → `ImpactCount` (optional alt).
 - `join_flows.py` — §5 logic; emits `(ip, window, bh_hits, bh_bytes, accuracy, indicator_id)`.
 - `compute_qob.py` — CLI with `--source csv|es`.
-- Unit tests: CSV (matched, unmatched, sampled, multi-router dupes, window edges)
-and ES (fake client: CIDR terms, sampling scale, active-window filter). **12 passing.**
+- Unit tests: CSV (matched, unmatched, sampled, multi-router dupes, window edges),
+ES (fake client) and Redis (fake client: counters, additivity, TTL, ranking,
+dedupe guard, goflow2 parse). **18 passing.**
 
 **Exit:** Deterministic per-IP counts from captured/fake data. ✅
 
 ### Phase 2 — Production wiring (1–2 weeks)
 
-- Point `flow_es.py` at the live ES/ElastiFlow index; confirm `EsFieldMap`.
-- **Dedupe upstream** (collector or flow-id) to address the ES agg dedup caveat (§3.1).
-- `poll_flows.py` — scheduled run (cron/k8s CronJob): fetch BHR list → ES aggregate → store.
-- Idempotent writes keyed by `(ip, window_start)`.
-- Observability: flows/sec, % matched to blocked IPs, ES query latency, lag.
-- Optional: Kibana dashboard for top blocked IPs by dropped packets.
+- Run the **consumer** against live goflow2 output; confirm goflow2 JSON keys.
+- Multi-router setups: gate counting on `RedisQobStore.seen_flow()` (§3.1).
+- Deploy consumer (cron/k8s) fed by BHR's blocked set; write Redis counters with TTL.
+- Counters are additive; use the dedupe guard for idempotency across redelivery.
+- Observability: flows/sec, % matched to blocked IPs, Redis memory, consumer lag.
+- **RedisInsight** for top blocked IPs by dropped packets (no Kibana on flow path).
 
 **Exit:** Automated per-IP `bh_hits`/`bh_bytes` refresh in dev/staging.
 
@@ -284,10 +295,11 @@ and ES (fake client: CIDR terms, sampling scale, active-window filter). **12 pas
 
 | Layer      | Approach                                                                            |
 | ---------- | ----------------------------------------------------------------------------------- |
-| Parse      | Golden files from real nfdump output; ES via fake client (`test_flow_es.py`)        |
-| Join       | Fixtures: matched/unmatched IPs, window-edge overlaps, active/expired blocks        |
-| Sampling   | Verify `sampling_scale` math and `accuracy` tagging (both CSV + ES paths)           |
-| Dedup      | CSV: same 5-tuple from 2 routers → counted once. ES: documented as upstream concern |
+| Parse      | nfdump CSV golden files; goflow2 JSON parser; ES + Redis via fake clients            |
+| Join       | Fixtures: matched/unmatched IPs, window-edge overlaps, active/expired blocks         |
+| Sampling   | Verify `sampling_scale` math and `accuracy` tagging (CSV + ES + Redis paths)         |
+| Dedup      | CSV: same 5-tuple from 2 routers → counted once. Redis: `seen_flow()` SET NX guard   |
+| Store      | Redis fake: counter additivity, TTL applied, ZSET ranking merge over days           |
 | Validation | Spot-check top IPs vs interface/ACL counters where available                        |
 
 
@@ -302,12 +314,14 @@ be missed entirely) — keep this in mind when ranking small offenders.
 - **Accounting order.** If a platform accounts *after* the forwarding/discard
 decision, dropped packets won't appear in flows; fall back to Option 2/3.
 - **Multi-router double counting.** Asymmetric routing can report the same flow
-on several devices. The CSV path dedupes; the **ES aggregation path does not**
-(§3.1) — dedupe upstream at the collector or via a unique flow id before
+on several devices. The CSV path dedupes within a batch; across batches /
+exporters gate counting on `RedisQobStore.seen_flow()` (SET NX EX) before
 trusting absolute counts.
-- **ElastiFlow licensing/throughput.** Free tier is flow-rate capped and
-otherwise commercial — verify it fits peak attack volume, else use the OSS
-goflow2 → ES fallback.
+- **Redis durability.** Counts are client-facing → enable **AOF** (or RDB) so a
+restart doesn't drop the week. Size memory for active-IP × 7 daily buckets.
+- **Consumer throughput.** Aggregate-at-ingest means volume hits the consumer,
+not storage — scale consumers (shard by src IP) and/or buffer goflow2 → Kafka
+at very high flow rates.
 - **Active/inactive timeouts.** Long attacks span multiple flow records; align
 flow timestamps to QoB windows, don't double-count split flows.
 - **NAT / shared IPs.** Same caveat as `plan.md` §8 — document inner vs outer IP.
@@ -320,7 +334,7 @@ pre-filter to the blocked-IP set early if possible.
 
 1. What `sampling_rate` do the RTBH routers export at, and is it stable? (Exactness not required for v1.)
 2. ~~Direction~~ **Resolved: source-based RTBH (S/RTBH via uRPF) → join on `src_ip`.** Remaining sub-question: where are uRPF-dropped sources accounted, so flow capture points have full coverage?
-3. ~~Collector choice~~ **Resolved: ElastiFlow → Elasticsearch (§3.1).** Sub-question: does the free tier fit our flow rate, or do we need OSS goflow2→ES?
+3. ~~Collector + store choice~~ **Resolved: goflow2 → consumer → Redis (TTL), ES off the flow path (§3.1).** Sub-question: peak flows/sec the consumer must sustain, and shard/Kafka threshold?
 4. Pull blocked-IP list from **BHR** (`query_limited`) or **STINGAR** directly? (Both are in ES already — could even do the whole join in ES later.)
 5. (v2) If/when exactness matters, what error band is acceptable before we switch to ACL/Flowspec counters?
 
@@ -328,9 +342,9 @@ pre-filter to the blocked-IP set early if possible.
 
 ## 10. Immediate next steps
 
-1. ~~Build Phase 1 correlator + tests~~ **DONE** (`flow_counters.py`, `flow_es.py`, `join_flows.py`, `compute_qob.py`, 12 tests).
-2. Run Phase 0 capability check with neteng (sampling rate, ingress accounting, uRPF capture coverage).
-3. Verify ElastiFlow licensing/throughput fits; confirm ES flow index field names vs `EsFieldMap`.
+1. ~~Build Phase 1 correlator + tests~~ **DONE** (`flow_counters.py`, `flow_redis.py`, `flow_es.py`, `join_flows.py`, `compute_qob.py`, 18 tests).
+2. ~~Stand up the goflow2 → consumer → Redis + RedisInsight PoC lab~~ **DONE** (`lab/`).
+3. Run Phase 0 capability check with neteng (sampling rate, ingress accounting, uRPF capture coverage).
 4. Capture 1 week of flow + `publist.csv` snapshots; validate one test IP's count vs an independent counter (error band).
-5. Phase 2: point `flow_es.py` at live ES, add upstream dedupe, schedule `poll_flows.py`, idempotent store + Kibana view.
+5. Phase 2: run the consumer against live goflow2, gate on `seen_flow()`, schedule it, RedisInsight view.
 

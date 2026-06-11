@@ -3,7 +3,7 @@
 
 rtbh_direction: source        # source | destination  (we use source)
 join_field: src_ip            # derived from rtbh_direction
-window_seconds: 300
+window_seconds: 86400         # daily buckets to line up with the 7-day TTL
 
 # BHR blocked-IP list (the authoritative join key).
 blocklist:
@@ -23,5 +23,15 @@ flow_exporters:
     sampling_rate: 1000
 
 collector:
-  kind: nfdump              # nfdump | goflow2
-  path: /var/cache/nfdump   # rotated nfcapd files
+  kind: goflow2             # goflow2 | nfdump  (chosen: goflow2, plan §3.1)
+  flow_file: /var/log/goflow2/flows.json   # JSON the consumer tails
+
+# Chosen store: aggregate-at-ingest into Redis with a per-key TTL (plan §3.1).
+# Keeps the flow firehose off the Elasticsearch cluster; counts auto-expire.
+store:
+  kind: redis               # redis | es  (es path retained as optional alt)
+  host: redis
+  port: 6379
+  prefix: qob
+  ttl_days: 8               # 8 so a rolling 7-day sum always has a full 7th day
+  persistence: aof          # enable AOF/RDB — counts are client-facing

@@ -2,8 +2,12 @@
 #
 # Pipeline (matches plan §3.1 — all OSS, arm64-friendly):
 #   src host → router (S/RTBH: uRPF + blackhole) → tgt host
-#   router → NetFlow v9 → goflow2 (decode → JSON file) → Fluentd → Elasticsearch
-#   → our flow_es.py (verify.py)
+#   router → NetFlow v9 → goflow2 (decode → JSON file) → consumer (qob.flow_redis)
+#   → Redis (TTL ~7d counters) → RedisInsight / verify.py
+#
+# Elasticsearch is deliberately NOT in the flow path (plan §3.1): flow is a
+# short-lived QoB input, so we aggregate-at-ingest into Redis and let per-key
+# TTL handle the 7-day retention — keeping the firehose off the ES cluster.
 #
 # Control/collector plane uses the containerlab mgmt network (nodes reach each
 # other by short name / fixed mgmt IPs). Only the DATA path under test
@@ -56,12 +60,11 @@ topology:
     # --- RTBH trigger: ExaBGP (stands in for bhr-client-exabgp) ---------------
     exabgp:
       kind: linux
-      image: ghcr.io/exa-networks/exabgp:4.2.21
+      image: qob/exabgp:latest             # built from lab/exabgp/Dockerfile
       mgmt-ipv4: 172.20.20.12
       binds:
         - exabgp/exabgp.conf:/etc/exabgp/exabgp.conf
         - exabgp/blackhole.sh:/blackhole.sh
-      cmd: exabgp /etc/exabgp/exabgp.conf
 
     # --- Collector: goflow2 decodes NetFlow -> JSON to a shared file ----------
     goflow2:
@@ -69,43 +72,46 @@ topology:
       image: netsampler/goflow2:v2.1.5
       mgmt-ipv4: 172.20.20.13
       binds:
-        - .data/flows:/var/log/goflow2          # shared with fluentd
+        - .data/flows:/var/log/goflow2          # shared with the consumer
       cmd: >-
         -listen netflow://:2055
         -format json
         -transport file
         -transport.file /var/log/goflow2/flows.json
 
-    # --- Shipper: Fluentd tails goflow2 JSON -> Elasticsearch -----------------
-    fluentd:
+    # --- Consumer: tails goflow2 JSON, joins BHR list -> Redis counters -------
+    consumer:
       kind: linux
-      image: qob/fluentd-es:latest            # built from lab/fluentd/Dockerfile
+      image: qob/consumer:latest              # built from lab/consumer/Dockerfile
       mgmt-ipv4: 172.20.20.15
       binds:
+        - ..:/app                               # live repo (qob package importable)
         - .data/flows:/var/log/goflow2          # same shared dir (tail source)
-        - fluentd/fluent.conf:/fluentd/etc/fluent.conf
+      env:
+        PYTHONPATH: /app
+        REDIS_HOST: redis
+        REDIS_PORT: "6379"
+        FLOW_FILE: /var/log/goflow2/flows.json
+        BLOCKLIST: /app/lab/consumer/blocklist.csv
+        WINDOW: "86400"
+      cmd: python /app/lab/consumer/run.py
 
-    # --- Store: Elasticsearch single node ------------------------------------
-    elasticsearch:
+    # --- Store: Redis (AOF on, so the 7-day counters survive restarts) --------
+    redis:
       kind: linux
-      image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+      image: redis:7-alpine
       mgmt-ipv4: 172.20.20.14
       ports:
-        - 9200:9200
-      env:
-        discovery.type: single-node
-        xpack.security.enabled: "false"
-        ES_JAVA_OPTS: -Xms1g -Xmx1g
+        - 6379:6379                             # host verify.py connects here
+      cmd: redis-server --appendonly yes
 
-    # --- UI: Kibana (open http://localhost:5601, no login — security off) -----
-    kibana:
+    # --- UI: RedisInsight (open http://localhost:5540; add db host=redis) -----
+    redisinsight:
       kind: linux
-      image: docker.elastic.co/kibana/kibana:8.15.0
+      image: redis/redisinsight:latest
       mgmt-ipv4: 172.20.20.16
       ports:
-        - 5601:5601
-      env:
-        ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+        - 5540:5540
 
   links:
     - endpoints: ["src:eth1", "router:eth1"]     # ingress under uRPF

@@ -3,7 +3,7 @@
 #   1. enable forwarding + STRICT uRPF on the ingress interface (this is what
 #      turns a blackhole route for a SOURCE into a drop — i.e. S/RTBH);
 #   2. start FRR (BGP + the static discard route);
-#   3. start softflowd exporting NetFlow v9 for ingress (eth1) to ElastiFlow.
+#   3. start softflowd exporting NetFlow v9 for ingress (eth1) to goflow2.
 #
 # CAVEAT (read lab/README.md): softflowd captures via libpcap, which sees
 # packets BEFORE the kernel uRPF drop. So this lab faithfully exercises the

@@ -11,6 +11,8 @@ Normalized CSV headers:
 from __future__ import annotations
 
 import csv
+import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from ..models import FlowRecord, parse_ts
@@ -70,3 +72,44 @@ def from_rows(rows) -> list[FlowRecord]:
 def load_flows_csv(path: str | Path) -> list[FlowRecord]:
     with open(path, newline="", encoding="utf-8") as fh:
         return from_rows(csv.DictReader(fh))
+
+
+def _ns_to_dt(ns) -> datetime:
+    return datetime.fromtimestamp(int(ns) / 1_000_000_000, tz=timezone.utc)
+
+
+def flow_from_goflow2(obj: dict) -> FlowRecord:
+    """Parse one goflow2 JSON record (its native keys) into a FlowRecord.
+
+    goflow2 emits nanosecond epoch timestamps and keys like src_addr / packets /
+    bytes / sampling_rate. This is the consumer-side parser for the
+    goflow2 → Redis pipeline (plan §3.1).
+    """
+    start_ns = obj.get("time_flow_start_ns") or obj.get("time_received_ns") or 0
+    end_ns = obj.get("time_flow_end_ns") or start_ns or 0
+    return FlowRecord(
+        start=_ns_to_dt(start_ns),
+        end=_ns_to_dt(end_ns),
+        src_addr=str(obj.get("src_addr", "")),
+        dst_addr=str(obj.get("dst_addr", "")),
+        src_port=int(obj.get("src_port") or 0),
+        dst_port=int(obj.get("dst_port") or 0),
+        proto=str(obj.get("proto", "")).upper(),
+        packets=int(obj.get("packets") or 0),
+        bytes=int(obj.get("bytes") or 0),
+        sampling_rate=int(obj.get("sampling_rate") or 1) or 1,
+        device_id=str(obj.get("sampler_address", "")),
+    )
+
+
+def load_goflow2_jsonl(path: str | Path) -> list[FlowRecord]:
+    out: list[FlowRecord] = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            obj = json.loads(line)
+            if obj.get("src_addr"):
+                out.append(flow_from_goflow2(obj))
+    return out

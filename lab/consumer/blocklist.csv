@@ -1,0 +1,2 @@
+cidr,indicator_id,source,why,added,removed,ident
+10.0.1.66/32,lab-0001,LAB,RTBH PoC source,2026-01-01T00:00:00Z,,exabgp

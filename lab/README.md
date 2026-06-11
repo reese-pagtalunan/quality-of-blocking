@@ -7,8 +7,15 @@ concept for step #2:
 > When the router **drops** an attacker's traffic via source-based RTBH
 > (uRPF + blackhole), does it still produce a **NetFlow** record we can count?
 
-All components are **OSS and arm64-friendly** (goflow2 + Fluentd + Elasticsearch),
-matching the collector decision in `plan-netflow-counting.md` §3.1.
+All components are **OSS and arm64-friendly** (goflow2 + a small Python consumer
++ Redis + RedisInsight + ExaBGP), matching the collector/store decision in
+`plan-netflow-counting.md` §3.1.
+
+> **Why Redis and not Elasticsearch?** Flow is a short-lived QoB *input* (needed
+> for ~7 days), so we **aggregate-at-ingest** into Redis with a per-key TTL and
+> keep the flow firehose **off the ES cluster**. The lab mirrors that exactly —
+> there is no ES/Kibana in the flow path. (`flow_es.py` remains in the codebase
+> as an optional alternative.)
 
 ```mermaid
 flowchart LR
@@ -17,21 +24,22 @@ flowchart LR
     TGT["tgt 10.0.2.66<br/>(victim)"]
     EXA["exabgp<br/>= bhr-client-exabgp<br/>announce S/32 + 65535:666"]
     GF["goflow2<br/>decode → JSON file"]
-    FL["fluentd<br/>tail → ES"]
-    ES[("elasticsearch<br/>qob-flow-*")]
-    QOB["verify.py → qob.flow_es"]
+    CON["consumer<br/>qob.flow_redis<br/>join + window + ×sampling"]
+    RDS[("redis<br/>qob:hits / qob:rank<br/>TTL ~7d")]
+    QOB["verify.py / RedisInsight"]
 
     SRC -->|burst| RTR -->|forward A / drop B| TGT
     EXA -->|BGP blackhole| RTR
-    RTR -->|NetFlow v9| GF -->|shared file| FL --> ES --> QOB
+    RTR -->|NetFlow v9| GF -->|shared file| CON --> RDS --> QOB
 ```
 
 ## What this lab does and does NOT prove
 
 - ✅ **Proves the pipeline + our code:** BGP RTBH trigger → recursive blackhole →
-  strict-uRPF source drop → NetFlow export → goflow2 → Fluentd → Elasticsearch →
-  `qob.ingest.flow_es` aggregation. You get a **real NetFlow stream** through the
-  production code path instead of CSV fixtures.
+  strict-uRPF source drop → NetFlow export → goflow2 → consumer
+  (`qob.ingest.flow_redis`, joining against a BHR-style blocklist) → Redis TTL
+  counters. You get a **real NetFlow stream** through the production code path
+  instead of CSV fixtures.
 - ⚠️ **Does NOT prove hardware accounting order.** `softflowd` taps via libpcap,
   which sees packets **before** the kernel uRPF drop — so Phase B will usually
   still show flow here regardless. The pre/post-drop accounting question is
@@ -57,11 +65,14 @@ git clone <this repo> && cd quality-of-blocking
 All lab images here are arm64-native, so they run directly in the VM.
 (Alternatives: Lima/Colima or a Multipass/UTM Ubuntu VM.)
 
+Published ports (reach them from the Mac host): **6379** (Redis) and **5540**
+(RedisInsight). With OrbStack these are forwarded automatically; with other VMs
+forward them yourself.
+
 ## Prerequisites
 
 - Docker + containerlab (inside the Linux VM on macOS)
-- Python deps for the verifier: `pip install -e '.[es]'` (from repo root)
-- `curl` (for the ES bootstrap)
+- Python deps for the verifier: `pip install -e '.[redis]'` (from repo root)
 
 ## Build & deploy
 
@@ -69,35 +80,37 @@ All lab images here are arm64-native, so they run directly in the VM.
 # from repo root
 docker build -t qob/rtbh-router:latest lab/router
 docker build -t qob/traffic:latest     lab/test
-docker build -t qob/fluentd-es:latest  lab/fluentd
+docker build -t qob/exabgp:latest      lab/exabgp
+docker build -t qob/consumer:latest    lab/consumer
 
-mkdir -p lab/.data/flows                       # shared goflow2↔fluentd spool
+mkdir -p lab/.data/flows                       # shared goflow2↔consumer spool
 sudo containerlab deploy -t lab/topology.clab.yml
-
-# apply the ES index template (src_addr as `ip`) BEFORE any flow is indexed
-bash lab/es/bootstrap.sh http://localhost:9200
-
-# (optional) create the Kibana data view so Discover works out of the box
-bash lab/es/kibana_dataview.sh http://localhost:5601
 ```
 
-## See it in Kibana
+Redis comes up with **AOF on** (`--appendonly yes`) so the 7-day counters
+survive a restart. The consumer auto-starts, waits for goflow2's JSON file, and
+tails it into Redis.
 
-Kibana runs at **http://localhost:5601** (no login — security is disabled in the
-lab). The `kibana_dataview.sh` step above creates the `qob-flow-*` data view; if
-you skipped it, add it manually: **Stack Management → Data Views → Create**,
-title `qob-flow-*`, time field `@timestamp`.
+## See it in RedisInsight
 
-Then, while/after running the A/B test:
+RedisInsight runs at **http://localhost:5540**. On first launch, **add a
+database**: host `redis` (or `127.0.0.1` if connecting via the published port),
+port `6379`, no auth. Then:
 
-- **Discover** (`/app/discover`): pick the `qob-flow-*` view, set the time picker
-  to *Last 15 minutes*, and filter `src_addr : "10.0.1.66"` to watch the test
-  source's flows arrive. Compare Phase A vs Phase B record counts here directly.
-- **Quick chart (Lens):** X axis = `@timestamp` (date histogram), Y axis =
-  `Sum of packets`, breakdown by `src_addr` — you'll see the blocked source's
-  bar(s) over time, the visual version of `verify.py`'s `bh_hits`.
-- Tip: if you want a live view, set Discover/Lens to auto-refresh every few
-  seconds and run `run_ab_test.sh` in another terminal.
+- **Browser**: filter keys by `qob:*`. You'll see:
+  - `qob:hits:10.0.1.66:YYYYMMDD` / `qob:bytes:...` — per-day counters (TTL ~8d).
+  - `qob:rank:YYYYMMDD` — a **sorted set** of source IPs by dropped packets;
+    open it to see the ranking the way clients would consume it.
+  - `qob:meta:10.0.1.66` — the BHR `indicator_id` lineage.
+- **Workbench** (run commands live):
+
+```text
+GET    qob:hits:10.0.1.66:20260611
+TTL    qob:hits:10.0.1.66:20260611
+ZREVRANGE qob:rank:20260611 0 9 WITHSCORES
+```
+
+Watch the counters climb as `run_ab_test.sh` fires bursts in another terminal.
 
 ## Run the proof-of-concept A/B test
 
@@ -105,24 +118,22 @@ Then, while/after running the A/B test:
 bash lab/test/run_ab_test.sh
 ```
 
-It bootstraps the template, sends 50k marked packets, queries ES (via the real
-`flow_es.py`), blocks the source via ExaBGP, resends, queries again, and prints
-the interpretation table.
+It sends 50k marked packets, reads the counts back from Redis (via the real
+`qob.flow_redis` read path in `verify.py`), blocks the source via ExaBGP,
+resends, reads again, and prints the interpretation table.
 
 ### Manual version
 
 ```bash
-bash lab/es/bootstrap.sh                                  # once
-
 # Phase A — baseline
 docker exec clab-qob-rtbh-src nping --tcp -p22 -g40001 -c50000 --rate5000 10.0.2.66
-sleep 8 && python lab/test/verify.py --src 10.0.1.66 --label "phase A"
+sleep 10 && python lab/test/verify.py --src 10.0.1.66 --label "phase A"
 
 # Block, then Phase B
 docker exec clab-qob-rtbh-exabgp /blackhole.sh block 10.0.1.66
 docker exec clab-qob-rtbh-router ip route get 10.0.1.66    # -> blackhole
 docker exec clab-qob-rtbh-src nping --tcp -p22 -g40001 -c50000 --rate5000 10.0.2.66
-sleep 8 && python lab/test/verify.py --src 10.0.1.66 --label "phase B"
+sleep 10 && python lab/test/verify.py --src 10.0.1.66 --label "phase B"
 
 docker exec clab-qob-rtbh-exabgp /blackhole.sh unblock 10.0.1.66
 ```
@@ -131,9 +142,9 @@ docker exec clab-qob-rtbh-exabgp /blackhole.sh unblock 10.0.1.66
 
 | Phase A | Phase B (traffic confirmed dropped) | Meaning | Verdict |
 |---|---|---|---|
-| flow present | flow ≈ same as A | accounted **before** drop | ✅ Option 1 viable |
-| flow present | flow ≈ zero | accounted **after** drop | ❌ pivot to Flowspec / sinkhole |
-| no flow | — | exporter/pipeline broken | debug goflow2/Fluentd/template first |
+| counts rise | counts rise ≈ same as A | accounted **before** drop | ✅ Option 1 viable |
+| counts rise | counts ≈ flat | accounted **after** drop | ❌ pivot to Flowspec / sinkhole |
+| no counts | — | exporter/consumer broken | debug goflow2/consumer first |
 
 (With pcap-based softflowd, expect the first row — pipeline OK, ordering unproven.)
 
@@ -141,9 +152,9 @@ docker exec clab-qob-rtbh-exabgp /blackhole.sh unblock 10.0.1.66
 
 ```bash
 docker exec clab-qob-rtbh-goflow2 tail -f /var/log/goflow2/flows.json   # decoded flow?
-docker logs clab-qob-rtbh-fluentd                                       # shipping errors?
-curl -s 'localhost:9200/qob-flow-*/_count'                              # docs landing?
-curl -s 'localhost:9200/qob-flow-*/_mapping' | grep -A1 src_addr        # src_addr == ip?
+docker logs clab-qob-rtbh-consumer                                      # join/flush errors?
+docker exec clab-qob-rtbh-redis redis-cli KEYS 'qob:*'                  # counters present?
+docker exec clab-qob-rtbh-redis redis-cli ZREVRANGE qob:rank:$(date -u +%Y%m%d) 0 9 WITHSCORES
 ```
 
 ## Cisco-accurate variant (to actually probe accounting order)
@@ -154,7 +165,8 @@ Swap the `router` node for a Cisco image so flow is produced by the router's own
 Replace the FRR config with IOS-XR/IOS-XE equivalents: `route-policy` matching
 the blackhole community → `set next-hop discard`, loose uRPF
 (`ipv4 verify unicast source reachable-via any`) on ingress, and a `flow monitor`
-exporting to the goflow2 node. Everything downstream is unchanged.
+exporting to the goflow2 node. Everything downstream (goflow2 → consumer → Redis)
+is unchanged.
 
 ## Teardown
 
@@ -167,13 +179,12 @@ rm -rf lab/.data/flows/*
 
 | Path | Purpose |
 |---|---|
-| `topology.clab.yml` | containerlab topology (router, src, tgt, exabgp, goflow2, fluentd, es, kibana) |
+| `topology.clab.yml` | containerlab topology (router, src, tgt, exabgp, goflow2, consumer, redis, redisinsight) |
 | `router/Dockerfile` `router/frr.conf` `router/daemons` `router/setup.sh` | RTBH router: BGP + recursive blackhole + strict uRPF + softflowd |
-| `exabgp/exabgp.conf` `exabgp/blackhole.sh` | RTBH trigger (stands in for bhr-client-exabgp) |
+| `exabgp/Dockerfile` `exabgp/exabgp.conf` `exabgp/blackhole.sh` | RTBH trigger image (stands in for bhr-client-exabgp) |
 | `goflow2` (in topology) | decodes NetFlow → JSON file (no config; CLI flags) |
-| `fluentd/Dockerfile` `fluentd/fluent.conf` | tails goflow2 JSON → Elasticsearch (`qob-flow-*`) |
-| `es/flow-index-template.json` `es/bootstrap.sh` | maps `src_addr` as `ip`; apply before indexing |
-| `es/kibana_dataview.sh` | creates the `qob-flow-*` Kibana data view |
+| `consumer/Dockerfile` `consumer/run.py` `consumer/blocklist.csv` | tails goflow2 JSON, joins BHR-style blocklist → Redis (`qob.flow_redis`) |
+| `redis` `redisinsight` (in topology) | TTL counter store + UI (no config) |
 | `test/Dockerfile` | src/tgt host image (nping) |
-| `test/run_ab_test.sh` | end-to-end A/B driver |
-| `test/verify.py` | queries ES via the real `qob.flow_es` (GOFLOW2_FIELD_MAP) |
+| `test/run_ab_test.sh` | end-to-end A/B driver (reads counts from Redis) |
+| `test/verify.py` | reads QoB counts via the real `qob.flow_redis` read path |
