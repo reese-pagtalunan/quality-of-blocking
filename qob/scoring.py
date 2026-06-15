@@ -1,8 +1,8 @@
 """Minimal QoB impact scoring.
 
-Phase 1 only implements `impact_score` (the BH "add" component from plan.md
-§3.3). Evidence / confirmation / persistence / penalty components are stubbed
-for later phases. Weights are passed in so they can move to config later.
+Phase 1 only implements `impact_score` (the BH "add" component from README).
+Evidence / confirmation / persistence / penalty components are stubbed for later
+phases. Weights are passed in so they can move to config later.
 """
 
 from __future__ import annotations
@@ -20,5 +20,5 @@ class ImpactWeights:
 
 
 def impact_score(count: ImpactCount, weights: ImpactWeights = ImpactWeights()) -> float:
-    """f(bh_hits, bh_bytes) with a log cap on bytes (plan.md §3.3)."""
+    """f(bh_hits, bh_bytes) with a log cap on bytes (README scoring section)."""
     return weights.w_hits * count.bh_hits + weights.w_bytes * log1p(count.bh_bytes)

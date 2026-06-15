@@ -1,6 +1,6 @@
 # Option 1 — Flow-based packet counting for black-holed IPs
 
-Companion plan to [`plan.md`](./plan.md). Part 2 (NGFW deny confirmation) is
+Companion plan to the [QoB overview](./README.md). Part 2 (NGFW deny confirmation) is
 [`plan-fw-denies.md`](./plan-fw-denies.md).
 
 This describes **Part 1 / Option 1**: count packets/bytes per honeypot-flagged
@@ -18,10 +18,10 @@ Cowrie).
 
 **Part 2** (NGFW deny confirmation) is [`plan-fw-denies.md`](./plan-fw-denies.md).
 Part 1 and Part 2 merge at score time: BH drives `impact_score`, FW drives
-`confirmation_score` / `edge_confirmed` (plan.md §3.1).
+`confirmation_score` / `edge_confirmed` (README — add vs mark).
 
-`plan.md` originally built `impact_score` on **exact** BH counters. **For v1
-this constraint is relaxed: sampled estimates are acceptable.** Plain RTBH to
+QoB originally targeted **exact** BH counters. **For v1 this constraint is
+relaxed: sampled estimates are acceptable.** Plain RTBH to
 `Null0` exposes no per-IP counter (the discard interface aggregates all
 blackholed traffic), so flow telemetry — **sampled or not** — is the
 least-disruptive way to attribute drops to specific IPs. We accept the
@@ -33,7 +33,7 @@ Reconciliation rules (v1):
 
 | Condition                                  | Decision                                                                   |
 | ------------------------------------------ | -------------------------------------------------------------------------- |
-| Per-IP ACL / Flowspec counters available   | Prefer `plan.md` §4.2 (exact) if cheap; otherwise this plan is fine.       |
+| Per-IP ACL / Flowspec counters available   | Prefer exact ACL/SNMP counters if cheap; otherwise this plan is fine.       |
 | Only `Null0` aggregate counter available   | Use this plan. Unsampled IPFIX/NetFlow v9 if available, **sampled is OK**. |
 | Only **sampled** NetFlow / sFlow available | **Accepted for v1.** Feeds `bh_hits`/`bh_bytes` and QoB rank directly.     |
 
@@ -349,7 +349,7 @@ not storage — scale consumers (shard by src IP) and/or buffer goflow2 → Kafk
 at very high flow rates.
 - **Active/inactive timeouts.** Long attacks span multiple flow records; align
 flow timestamps to QoB windows, don't double-count split flows.
-- **NAT / shared IPs.** Same caveat as `plan.md` §8 — document inner vs outer IP.
+- **NAT / shared IPs.** Document inner vs outer IP choice (open question in Part 2 §10).
 - **Volume.** Unsampled flow at edge can be high; size the collector and
 pre-filter to the blocked-IP set early if possible.
 

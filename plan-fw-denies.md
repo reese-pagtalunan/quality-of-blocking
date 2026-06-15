@@ -1,6 +1,6 @@
 # Part 2 — NGFW deny counting for blocked IPs (Palo Alto default)
 
-Companion plan to [`plan.md`](./plan.md). Part 1 (black-hole impact) is
+Companion plan to the [QoB overview](./README.md). Part 1 (black-hole impact) is
 [`plan-netflow-counting.md`](./plan-netflow-counting.md). This describes **Part 2**:
 count **policy deny events** per honeypot-flagged IP on the NG firewall **without
 changing the block pipeline**, by correlating Palo Alto **Traffic logs** (or
@@ -13,7 +13,7 @@ equivalent) against the **same authoritative blocked-IP list** held by BHR.
 
 ## 0. Relationship to the QoB plan (read first)
 
-`plan.md` §3.1 defines two roles:
+README (add vs mark) defines two roles:
 
 | Signal | QoB role | Part |
 | --- | --- | --- |
@@ -42,7 +42,7 @@ fixtures while discovery completes.
   honeypot `indicator_id` from BHR.
 - Set **`edge_confirmed = true`** when ≥1 deny is seen while the IP's block
   entry is active.
-- Feed **`confirmation_score`** = `w_f · min(fw_deny_count, cap)` (plan.md §3.3).
+- Feed **`confirmation_score`** = `w_f · min(fw_deny_count, cap)` (§9 below).
 
 ### Non-goals
 
@@ -377,7 +377,7 @@ with 2–3 `_source` documents for field mapping.
 4. **Session-end logging** — deny may appear minutes after packet; use
    `receive_time` / `@timestamp`.
 5. **Log suppression** — `fw_deny_count` may be a lower bound under heavy scan volume.
-6. **NAT** — document which IP is scored (plan.md §8 open question #1).
+6. **NAT** — document which IP is scored (§10 open question #6).
 7. **Multi-FW** — sum across fleet or dedupe by session id per device.
 
 ---
@@ -420,7 +420,7 @@ firewall:
 
 ## 15. References
 
-- [`plan.md`](./plan.md) — QoB model, §3.1 add vs mark, §4.3 FW denies
+- [README](./README.md) — QoB overview, add vs mark
 - [`plan-netflow-counting.md`](./plan-netflow-counting.md) — Part 1 BH impact
 - [`docs/black_hole_blocking.md`](./docs/black_hole_blocking.md) — PAN Traffic
   log filters, XML API, STINGAR-EDL correlation (Part 1 NGFW section)
