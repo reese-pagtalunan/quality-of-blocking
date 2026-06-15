@@ -1,10 +1,13 @@
 # Option 1 — Flow-based packet counting for black-holed IPs
 
-Companion plan to `[plan.md](./plan.md)`. This describes **Option 1**: count
-packets/bytes per honeypot-flagged IP that hits a black-hole router **without
-changing the RTBH mechanism**, by correlating router **flow telemetry**
-(NetFlow v9 / IPFIX / sFlow) against the **authoritative blocked-IP list** held
-by BHR (and lineage from STINGAR / Cowrie).
+Companion plan to [`plan.md`](./plan.md). Part 2 (NGFW deny confirmation) is
+[`plan-fw-denies.md`](./plan-fw-denies.md).
+
+This describes **Part 1 / Option 1**: count packets/bytes per honeypot-flagged
+IP that hits a black-hole router **without changing the RTBH mechanism**, by
+correlating router **flow telemetry** (NetFlow v9 / IPFIX / sFlow) against the
+**authoritative blocked-IP list** held by BHR (and lineage from STINGAR /
+Cowrie).
 
 > The blocking plane (Cowrie → STINGAR → `bhr-client-exabgp` → RTBH Null0) is
 > left **unchanged**. This adds a parallel **measurement plane** only.
@@ -12,6 +15,10 @@ by BHR (and lineage from STINGAR / Cowrie).
 ---
 
 ## 0. Relationship to the QoB plan (read first)
+
+**Part 2** (NGFW deny confirmation) is [`plan-fw-denies.md`](./plan-fw-denies.md).
+Part 1 and Part 2 merge at score time: BH drives `impact_score`, FW drives
+`confirmation_score` / `edge_confirmed` (plan.md §3.1).
 
 `plan.md` originally built `impact_score` on **exact** BH counters. **For v1
 this constraint is relaxed: sampled estimates are acceptable.** Plain RTBH to

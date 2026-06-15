@@ -35,3 +35,25 @@ store:
   prefix: qob
   ttl_days: 8               # 8 so a rolling 7-day sum always has a full 7th day
   persistence: aof          # enable AOF/RDB — counts are client-facing
+
+# Part 2 — NGFW deny confirmation (see plan-fw-denies.md).
+# QoB role: mark edge_confirmed + capped confirmation_score — NOT impact_score.
+firewall:
+  vendor: paloalto
+  match_field: src_ip       # src_ip | dst_ip  (confirm EDL rule direction)
+  deny_actions:
+    - deny
+    - drop
+    - reset-both
+  rules:
+    - STINGAR-EDL-BLOCK     # exact PAN security rule name(s) — TBD in discovery
+  source: elasticsearch     # elasticsearch | pan_api | csv
+  es_url: https://es.example.edu:9200
+  es_index: "pan-traffic-*" # confirm index pattern with security
+  poll_interval_seconds: 300
+  fields:
+    src_ip: source.ip
+    dst_ip: destination.ip
+    action: event.action
+    rule: rule.name
+    timestamp: "@timestamp"

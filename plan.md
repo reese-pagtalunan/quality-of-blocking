@@ -1,9 +1,16 @@
 # Quality of Blocking (QoB) — Implementation Plan
 
 Per-IP quantitative score that measures how strongly we block Cowrie-sourced
-threats, using **exact** counters from black-hole routers and NG firewalls.
-QoB is a first-class product metric that will later fuse with behavior and
-platform telemetry to produce an **attack severity** rating.
+threats, using counters from black-hole routers and NG firewalls. QoB is a
+first-class product metric that will later fuse with behavior and platform
+telemetry to produce an **attack severity** rating.
+
+**Implementation status:**
+
+| Part | Topic | Plan doc | Code status |
+| --- | --- | --- | --- |
+| 1 | Black-hole impact (NetFlow) | [`plan-netflow-counting.md`](./plan-netflow-counting.md) | Implemented (`qob/join_flows.py`, `flow_redis.py`, `lab/`) |
+| 2 | NGFW deny confirmation (Palo Alto) | [`plan-fw-denies.md`](./plan-fw-denies.md) | Planned |
 
 ---
 
@@ -21,7 +28,8 @@ platform telemetry to produce an **attack severity** rating.
 ### Non-goals (v1)
 
 - Replacing the existing block pipeline (Cowrie → STINGAR → BH → FW blocklist).
-- Deriving block counts from NetFlow or sFlow sampling.
+- Treating sampled NetFlow as exact BH counters (Part 1 accepts estimates; see
+  `plan-netflow-counting.md`; exact ACL counters preferred when available).
 - Building the full severity model (v2); only design hooks and normalized sub-scores.
 - Auto-changing block TTL or promotion rules from QoB (optional v2).
 
@@ -154,25 +162,35 @@ Answer with neteng / security:
 5. Log stack (Splunk, Elastic, Sentinel, on-prem only)?
 6. STINGAR export format and fields for `src_ip`, `indicator_id`, `first_seen`?
 
-### 4.2 Black-hole router hits
+### 4.2 Black-hole router hits (Part 1)
+
+See **[`plan-netflow-counting.md`](./plan-netflow-counting.md)** for the
+implemented flow-telemetry path (goflow2 → consumer → Redis).
 
 | Method | When to use | Output |
 | --- | --- | --- |
-| ACL / filter counters (SNMP, gNMI) | Per-prefix or per-IP ACE counters | `bh_hits` delta, optional bytes |
+| NetFlow / IPFIX / sFlow → goflow2 | **Chosen for v1** (Null0 has no per-IP counter) | `bh_hits` / `bh_bytes` (sampled OK) |
+| ACL / filter counters (SNMP, gNMI) | Per-prefix or per-IP ACE counters available | `bh_hits` delta, optional bytes (exact) |
 | Syslog on deny | Counter unavailable; moderate volume | Count events by dst/src IP |
 | Interface / Null0 counters | Single aggregation point only | Fleet totals, not per-IP |
 
-**Collector:** poll every 5–15 minutes; store deltas per `(device_id, ip|prefix, rule_id)`.
+**Collector:** goflow2 consumer or poll every 5–15 minutes; store per `(ip, day)`.
 
-### 4.3 NG firewall deny_count
+### 4.3 NG firewall deny_count (Part 2)
+
+See **[`plan-fw-denies.md`](./plan-fw-denies.md)** for full architecture,
+correlation rules, Redis schema, phases, and diagrams.
 
 | Method | When to use | Output |
 | --- | --- | --- |
-| Deny traffic logs → SIEM | Default | `count by src_ip` for blocklist rule |
-| Vendor API (Panorama, FortiAnalyzer, FMC) | Scheduled batch if SIEM laggy | Same aggregation |
+| Deny Traffic logs → Elasticsearch | **Default** (syslog → `stingar-efk`) | `fw_deny_count` by `src_ip` + STINGAR EDL rule |
+| PAN XML API | Batch poll if ES laggy or unavailable | Same aggregation |
+| CSV / JSONL replay | Tests and Phase 0 validation | Same aggregation |
 | Rule hit counter only | Sanity check | Not sufficient for per-IP QoB alone |
 
-**Collector:** SIEM query or API job every 5–15 minutes; key on `src_ip`, `rule`, `action=deny`.
+**Collector:** `poll_fw.py` every 5–15 minutes; key on `src_ip`, `rule`,
+`action=deny`. QoB role: **mark** `edge_confirmed` + capped `confirmation_score`
+— do not add FW bytes to `impact_score` (Part 1).
 
 ### 4.4 STINGAR / Cowrie evidence
 
@@ -186,31 +204,38 @@ Answer with neteng / security:
 
 ```text
 quality-of-blocking/
-├── plan.md                    # this document
+├── plan.md                      # this document
+├── plan-netflow-counting.md     # Part 1 — BH impact (implemented)
+├── plan-fw-denies.md            # Part 2 — FW confirmation (planned)
 ├── pyproject.toml
-├── README.md
 ├── config/
-│   ├── qob_weights.yaml       # w_e, w_b, caps, decay half-lives
-│   └── sources.yaml.example   # BH devices, FW rule names, SIEM endpoints
+│   ├── qob_weights.yaml         # w_e, w_b, caps, decay half-lives
+│   └── sources.yaml.example     # BH devices, FW rule names, SIEM endpoints
 ├── qob/
-│   ├── models.py              # QoBRecord, components dataclasses
-│   ├── scoring.py             # QoB_raw, rank, decay
-│   ├── join.py                # correlate IP + indicator_id across streams
+│   ├── models.py                # FlowRecord, BlockEntry, ImpactCount (+ FW types)
+│   ├── scoring.py               # impact_score (+ confirmation_score planned)
+│   ├── join_flows.py            # Part 1 correlate (implemented)
+│   ├── join_fw_denies.py        # Part 2 correlate (planned)
 │   └── ingest/
-│       ├── bh_counters.py     # SNMP/gNMI/syslog adapters
-│       ├── fw_denies.py       # SIEM / NGFW API adapters
-│       └── stingar.py         # evidence loader (port stingar_io patterns)
+│       ├── bhr_list.py          # BHR blocklist loader (implemented)
+│       ├── flow_counters.py     # CSV / goflow2 parser (implemented)
+│       ├── flow_redis.py        # Part 1 Redis store (implemented)
+│       ├── flow_es.py           # Part 1 ES alt (implemented)
+│       ├── fw_denies.py         # Part 2 SIEM / PAN API (planned)
+│       ├── fw_redis.py          # Part 2 Redis store (planned)
+│       └── stingar.py           # evidence loader (planned)
 ├── collectors/
-│   ├── poll_bh.py               # scheduled BH counter job
-│   └── poll_fw.py               # scheduled FW deny aggregation job
+│   ├── poll_flows.py            # Part 1 scheduled job (stub)
+│   └── poll_fw.py               # Part 2 scheduled job (planned)
 ├── jobs/
-│   └── compute_qob.py           # roll windows, write outputs
+│   └── compute_qob.py           # CLI: correlate + score
+├── lab/                         # Part 1 RTBH validation (containerlab)
 ├── tests/
-│   ├── test_scoring.py
-│   ├── fixtures/                # sample BH/FW/STINGAR snippets
-│   └── test_join.py
+│   ├── test_join.py
+│   ├── test_join_fw.py          # planned
+│   └── fixtures/
 └── docs/
-    └── severity-hooks.md        # how QoB feeds future severity fusion
+    └── black_hole_blocking.md   # PAN + router logging reference
 ```
 
 ---
@@ -229,21 +254,30 @@ quality-of-blocking/
 
 ### Phase 1 — Scoring core (1 week)
 
-- [ ] Define `QoBRecord` and component types in `qob/models.py`.
-- [ ] Implement `scoring.py` with configurable weights (`config/qob_weights.yaml`).
-- [ ] Unit tests with synthetic fixtures (BH-only, FW-only, both, penalties).
-- [ ] CLI: `python -m jobs.compute_qob --from-fixtures tests/fixtures/`.
+- [x] Core models (`FlowRecord`, `BlockEntry`, `ImpactCount`) in `qob/models.py`.
+- [x] `impact_score` in `scoring.py` (other components stubbed).
+- [x] `join_flows.correlate()` + unit tests with CSV fixtures.
+- [x] CLI: `python -m jobs.compute_qob --source csv …`.
 
-**Exit criteria:** Deterministic QoB output from static JSON inputs; documented formula.
+**Exit criteria:** Deterministic BH impact output from static fixtures — **met**.
 
 ### Phase 2 — Ingest adapters (2–3 weeks)
 
-- [ ] `stingar.py` — load sessions; emit `(ip, indicator_id, evidence fields)`.
-- [ ] `bh_counters.py` — first adapter matching production (SNMP **or** syslog **or** file replay).
-- [ ] `fw_denies.py` — first adapter (SIEM export file **or** API stub with replay).
-- [ ] `join.py` — merge streams on IP + time window; handle missing FW marks.
+**Part 1 (BH):** largely complete — see `plan-netflow-counting.md` and `lab/`.
 
-**Exit criteria:** End-to-end run on 1-week sample files produces QoB table.
+- [x] Flow CSV + goflow2 parsers (`flow_counters.py`).
+- [x] Redis store + lab consumer (`flow_redis.py`, `lab/consumer/run.py`).
+- [ ] Live BHR poll + production `poll_flows.py` wiring.
+
+**Part 2 (FW):** see `plan-fw-denies.md` §11.
+
+- [ ] `fw_denies.py` — CSV replay, then ES adapter (`EsFwDenySource`).
+- [ ] `join_fw_denies.py` — correlate denies ⋈ BHR list (reuse `BlockedSet`).
+- [ ] `fw_redis.py` + `poll_fw.py` — Redis counters and scheduled poll.
+- [ ] Extend `scoring.py` + `compute_qob.py` — merge BH impact + FW confirmation.
+- [ ] `stingar.py` — evidence loader (can proceed in parallel).
+
+**Exit criteria:** End-to-end run on 1-week sample files produces QoB table with both BH and FW components.
 
 ### Phase 3 — Collectors and storage (2 weeks)
 
@@ -291,6 +325,10 @@ quality-of-blocking/
 3. **Multiple BH routers** — sum, max, or dedupe by `(indicator_id, day)`?
 4. **STINGAR block timing** — same second on BH and FW, or delayed FW promotion?
 5. **Retention** — hot QoB windows vs cold audit archive duration.
+6. **FW log deduping** — session id available in ES? Count log rows vs unique sessions.
+7. **BH vs FW path overlap** — document whether confirmed FW denies imply packets that bypassed BH.
+8. **BHR scope** — does BHR list cover FW-promoted blocks or BH-only?
+9. **EDL match direction** — source vs destination IP on Palo Alto STINGAR rule.
 
 ---
 
@@ -317,8 +355,9 @@ quality-of-blocking/
 
 ## 11. Immediate next steps
 
-1. Initialize Python package (`pyproject.toml`, `qob/` skeleton).
-2. Copy/adapt `stingar_io.py` from `stingar-test` into `qob/ingest/stingar.py`.
-3. Run Phase 0 discovery checklist with neteng and security.
-4. Implement Phase 1 scoring + tests using fabricated counter inputs.
-5. Replay one week of sample logs through Phase 2 adapters before touching production APIs.
+1. ~~Initialize Python package~~ — done (`pyproject.toml`, `qob/`).
+2. ~~Part 1 lab + flow pipeline~~ — done; see `lab/README.md` and `plan-netflow-counting.md`.
+3. **Part 2 Phase 0:** security exports PAN Traffic deny sample from ES (§10 in `plan-fw-denies.md`).
+4. Implement `join_fw_denies.py` + CSV fixtures before live ES queries.
+5. Merge BH + FW in `compute_qob` once both streams produce per-(ip, day) rows.
+6. Wire live BHR poll + production `poll_flows.py` (Part 1 Phase 2 remainder).
