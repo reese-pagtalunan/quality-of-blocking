@@ -11,7 +11,7 @@ rating.
 | --- | --- | --- | --- |
 | 1 | Black-hole impact (NetFlow) | [`plan-netflow-counting.md`](./plan-netflow-counting.md) | Implemented (`qob/join_flows.py`, `flow_redis.py`, `lab/`) |
 | 2 | NGFW deny confirmation (Palo Alto) | [`plan-fw-denies.md`](./plan-fw-denies.md) | Planned |
-| — | Cloud honeypot / Cilium policies | [`cloud-plan.md`](./cloud-plan.md) | Separate track |
+| — | Cloud SSH honeypot (Azure VPC) | [`ssh-cloud-plan.md`](./ssh-cloud-plan.md) | Planned |
 
 ## Add vs mark
 
@@ -45,7 +45,7 @@ Implementation detail lives in companion plans:
 
 - [Part 1 — flow counting](./plan-netflow-counting.md)
 - [Part 2 — FW denies](./plan-fw-denies.md)
-- [Cloud honeypot](./cloud-plan.md)
+- [Cloud SSH honeypot](./ssh-cloud-plan.md)
 - [RTBH lab](./lab/README.md)
 
 ## Quick start
