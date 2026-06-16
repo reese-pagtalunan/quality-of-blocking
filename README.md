@@ -29,8 +29,16 @@ are a later refinement.
 
 ## Pipeline
 
-Blocking is unchanged: Cowrie → STINGAR → BHR → black-hole router (immediate) +
-NGFW EDL (long-term). QoB adds parallel **measurement** only.
+Blocking is unchanged: Cowrie → STINGAR (Forewarned) → BHR → black-hole router
+(**immediate**, upstream of PAN) + NGFW EDL (**~5 min** refresh, blocks up to
+**7 days**). STINGAR submits to BHR via an output plugin; production RTBH uses a
+**custom SDN API** (the lab uses ExaBGP as a stand-in). QoB adds parallel
+**measurement** only.
+
+**Neteng-confirmed:** BHR sits **in front of** the firewalls, so high BH impact
+with **zero** PAN denies is often normal — not a failure. Bad-actor feeds mix
+honeypot and other detections; QoB needs **Cowrie/STINGAR lineage**
+(`indicator_id`) to score honeypot-sourced blocks, not the blocklist alone.
 
 ## Scoring
 

@@ -115,6 +115,11 @@ Reuse the README's add-vs-mark contract: flow-derived counts drive
 do not sum BH-equivalent bytes and reject bytes for the same packets unless the
 paths are proven disjoint.
 
+**On-prem context (neteng 2026):** Duke BHR is **upstream of Palo Alto** and
+**instantaneous**; PAN EDL refreshes ~every 5 minutes. Expect **low NSG/FW-style
+rejects** when the upstream drop absorbs traffic first — same semantics as Part 2
+on-prem (`plan-fw-denies.md` §9).
+
 **Non-goals:** Kubernetes, Cilium, Calico, HTTP / gRPC L7 policies, and AWS WAF
 are all out of scope. K8s + Cilium L7 auto-policy generation may be a separate
 future doc.
@@ -236,9 +241,9 @@ existing `FlowRecord` shape (`src_ip`, packets, bytes, timestamp), then reuse
 
 **Part 2 (confirm).** Count `flowStatus == REJECT` (or the Azure equivalent)
 where the rule matches a QoB NSG deny rule → `fw_deny_count` /
-`edge_confirmed`. The same caveat as [`plan-fw-denies.md`](./plan-fw-denies.md)
-§9 applies: if a route blackhole sits upstream of the NSG, rejects may read
-**zero** even when blocking is working, and that is normal.
+`edge_confirmed`. On-prem, BHR is **upstream of PAN** (neteng 2026), so rejects
+are often zero when the upstream drop works first — design the cloud lab the
+same way if possible (route blackhole or edge drop before NSG REJECT).
 
 **ATT&CK (optional v1).** Map from **Cowrie session logs**, not network L7:
 
@@ -288,11 +293,14 @@ New modules (documented only, not built in this pass):
 
 ## 8. Discovery checklist (before build)
 
+**On-prem reference (neteng 2026):** BHR upstream of PAN; source-based RTBH;
+BHR instantaneous, PAN EDL ~5 min. Mirror that ordering in the cloud lab if
+possible.
+
 1. Where does the drop happen — NSG `REJECT`, or a route blackhole first?
 2. NSG rule limit and automation pattern (rule churn at scale).
 3. Flow log field names for `src_ip`, `bytes`, `action`, and rule name.
-4. Cowrie → STINGAR path in the cloud (shared `stingar-efk` / ES, or an isolated
-   lab pipeline)?
+4. Cowrie → STINGAR path in the cloud (Forewarned / Splunk / isolated lab)?
 5. Public IP exposure model for the honeypot VM.
 
 ---

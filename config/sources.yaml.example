@@ -6,6 +6,7 @@ join_field: src_ip            # derived from rtbh_direction
 window_seconds: 86400         # daily buckets to line up with the 7-day TTL
 
 # BHR blocked-IP list (the authoritative join key).
+# STINGAR → BHR output plugin (prod); RTBH via SDN API (ExaBGP in lab only).
 blocklist:
   # Either a live endpoint (Phase 2) or a captured snapshot (Phase 1).
   source: publist_csv         # publist_csv | query_limited | file
@@ -38,18 +39,20 @@ store:
 
 # Part 2 — NGFW deny confirmation (see plan-fw-denies.md).
 # QoB role: mark edge_confirmed + capped confirmation_score — NOT impact_score.
+# Neteng 2026: BHR upstream of PAN (~5 min EDL refresh); Splunk is production
+# deny store today — confirm post-Forewarned migration.
 firewall:
   vendor: paloalto
-  match_field: src_ip       # src_ip | dst_ip  (confirm EDL rule direction)
+  match_field: src_ip       # RTBH is source-based; confirm EDL rule direction
   deny_actions:
     - deny
     - drop
     - reset-both
   rules:
-    - STINGAR-EDL-BLOCK     # exact PAN security rule name(s) — TBD in discovery
-  source: elasticsearch     # elasticsearch | pan_api | csv
+    - STINGAR-EDL-BLOCK     # exact PAN security rule name(s) — TBD (§10)
+  source: splunk             # splunk | elasticsearch | pan_api | csv
   es_url: https://es.example.edu:9200
-  es_index: "pan-traffic-*" # confirm index pattern with security
+  es_index: "pan-traffic-*" # if ES still in use
   poll_interval_seconds: 300
   fields:
     src_ip: source.ip

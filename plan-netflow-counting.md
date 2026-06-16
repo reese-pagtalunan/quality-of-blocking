@@ -9,8 +9,10 @@ correlating router **flow telemetry** (NetFlow v9 / IPFIX / sFlow) against the
 **authoritative blocked-IP list** held by BHR (and lineage from STINGAR /
 Cowrie).
 
-> The blocking plane (Cowrie → STINGAR → `bhr-client-exabgp` → RTBH Null0) is
-> left **unchanged**. This adds a parallel **measurement plane** only.
+> The blocking plane (Cowrie → STINGAR → BHR output plugin → RTBH via **SDN API**
+> → Null0) is left **unchanged**. Production no longer uses ExaBGP; the `lab/`
+> topology still uses ExaBGP as a stand-in for `bhr-client-exabgp`. This adds a
+> parallel **measurement plane** only.
 
 ---
 
@@ -71,9 +73,10 @@ refinement, not a requirement.
 flowchart TD
     subgraph CONTROL["Blocking plane (UNCHANGED)"]
         STG["STINGAR<br/>indicator_id, src_ip, first_seen"]
-        EXA["bhr-client-exabgp"]
+        BHRPL["BHR output plugin"]
+        SDN["SDN API speaker<br/>(prod; ExaBGP in lab)"]
         RTR["Edge routers<br/>RTBH next-hop Null0"]
-        STG --> EXA --> RTR
+        STG --> BHRPL --> SDN --> RTR
     end
 
     subgraph LIST["Authoritative blocked-IP list (join key)"]
@@ -98,19 +101,29 @@ flowchart TD
 
     classDef ctrl fill:#064e3b,stroke:#6ee7b7,color:#fff
     classDef meas fill:#1e3a8a,stroke:#93c5fd,color:#fff
-    class STG,EXA,RTR,BHR ctrl
+    class STG,BHRPL,SDN,RTR,BHR ctrl
     class EXP,COL,CORR,STORE,VIEW,QOB meas
 ```
 
 
 
-### Deployment: source-based RTBH (confirmed)
+### Deployment: source-based RTBH (confirmed — neteng 2026)
 
 We use **source-based RTBH (S/RTBH)**: the blackhole route is installed on the
 **attacker's source `/32`**, and **uRPF (loose mode)** on ingress interfaces
 drops any packet whose *source* address resolves to `Null0`. So the blocked
 entry in BHR **is the attacker**, and the correlator joins flow `**src_ip`**
-against the blocked-IP list.
+against the blocked-IP list. **Neteng confirmed: all RTBH is source-based.**
+
+**Production trigger:** STINGAR submits indicators to BHR via an output plugin;
+BHR publishes routes through a **custom SDN API** (replacing the original
+ExaBGP-based speaker). BHR action is **instantaneous** relative to PAN EDL
+(~5 minute refresh).
+
+**Path:** BHR / black-hole routing sits **upstream of the Palo Alto** firewalls.
+Most attacker traffic should be dropped at BH before it reaches PAN, so Part 2
+FW deny counts are often **zero** even when blocking works (see
+`plan-fw-denies.md` §9).
 
 ### Why ingress flow accounting still sees the traffic
 
@@ -357,10 +370,10 @@ pre-filter to the blocked-IP set early if possible.
 
 ## 9. Open questions
 
-1. What `sampling_rate` do the RTBH routers export at, and is it stable? (Exactness not required for v1.)
-2. ~~Direction~~ **Resolved: source-based RTBH (S/RTBH via uRPF) → join on `src_ip`.** Remaining sub-question: where are uRPF-dropped sources accounted, so flow capture points have full coverage?
+1. What `sampling_rate` do the RTBH routers export at, and is it stable? (Exactness not required for v1.) **Still open — ask neteng.**
+2. ~~Direction~~ **Resolved (neteng 2026): source-based RTBH (S/RTBH via uRPF) → join on `src_ip`.** Remaining sub-question: where are uRPF-dropped sources accounted, so flow capture points have full coverage?
 3. ~~Collector + store choice~~ **Resolved: goflow2 → consumer → Redis (TTL), ES off the flow path (§3.1).** Sub-question: peak flows/sec the consumer must sustain, and shard/Kafka threshold?
-4. Pull blocked-IP list from **BHR** (`query_limited`) or **STINGAR** directly? (Both are in ES already — could even do the whole join in ES later.)
+4. ~~Pull blocked-IP list from BHR or STINGAR?~~ **Resolved: BHR (`publist.csv` / `query_limited`) is the authoritative join key.** STINGAR feeds BHR via output plugin; Cowrie lineage (`indicator_id`) comes from BHR/STINGAR exports, not from the mixed bad-actor feed alone.
 5. (v2) If/when exactness matters, what error band is acceptable before we switch to ACL/Flowspec counters?
 
 ---
@@ -369,7 +382,7 @@ pre-filter to the blocked-IP set early if possible.
 
 1. ~~Build Phase 1 correlator + tests~~ **DONE** (`flow_counters.py`, `flow_redis.py`, `flow_es.py`, `join_flows.py`, `compute_qob.py`, 18 tests).
 2. ~~Stand up the goflow2 → consumer → Redis + RedisInsight PoC lab~~ **DONE** (`lab/`).
-3. Run Phase 0 capability check with neteng (sampling rate, ingress accounting, uRPF capture coverage).
+3. ~~Run Phase 0 capability check with neteng~~ **Partially done (2026):** source-based RTBH and BHR-upstream-of-PAN confirmed. **Still need:** sampling rate, ingress Null0 accounting on hardware routers.
 4. Capture 1 week of flow + `publist.csv` snapshots; validate one test IP's count vs an independent counter (error band).
 5. Phase 2: run the consumer against live goflow2, gate on `seen_flow()`, schedule it, RedisInsight view.
 

@@ -6,8 +6,10 @@ count **policy deny events** per honeypot-flagged IP on the NG firewall **withou
 changing the block pipeline**, by correlating Palo Alto **Traffic logs** (or
 equivalent) against the **same authoritative blocked-IP list** held by BHR.
 
-> The blocking plane (Cowrie → STINGAR → BHR → NGFW EDL / blocklist rule) is
-> left **unchanged**. This adds a parallel **confirmation plane** only.
+> The blocking plane (Cowrie → STINGAR → BHR → BH router + NGFW EDL) is left
+> **unchanged**. BHR is **instantaneous** and sits **upstream of PAN** (~5 min
+> EDL refresh; FW blocks up to **7 days**). This adds a parallel **confirmation
+> plane** only.
 
 ---
 
@@ -27,9 +29,9 @@ are proven disjoint. Default: **BH drives `impact_score`; FW drives
 Part 1 is **implemented** (`qob/join_flows.py`, `qob/ingest/flow_redis.py`,
 `lab/`). Part 2 is **planned** (`qob/ingest/fw_denies.py`, etc.).
 
-Several architecture choices (EDL match direction, BH vs FW promotion timing,
-ES field names) are **TBD** — see §10. Implementation can proceed with CSV
-fixtures while discovery completes.
+**Neteng discovery (2026)** resolved path, timing, and BHR scope — see §10.
+Still open: exact PAN rule name, Splunk/ES field map, EDL match direction.
+Implementation can proceed with CSV fixtures while the remainder completes.
 
 ---
 
@@ -50,8 +52,11 @@ fixtures while discovery completes.
 - No replacement for BH impact measurement (that's Part 1).
 - No Threat-log / zone-protection / dataplane-discard counters (not EDL policy
   denies). See `docs/black_hole_blocking.md` Part 1.
-- No Palo Alto in containerlab for v1 — test with CSV/ES fixtures (like Part 1
-  fixtures before the RTBH lab existed).
+- No Palo Alto in containerlab for v1 — test with CSV/Splunk/ES fixtures (like
+  Part 1 fixtures before the RTBH lab existed).
+- Not using Splunk as the primary **counter** (billions of deny events/month;
+  pulls are slow). Use targeted deny queries or PAN API; Splunk is for samples
+  and lineage discovery only.
 
 ---
 
@@ -62,8 +67,11 @@ flowchart TB
     subgraph CONTROL["Blocking plane (UNCHANGED)"]
         STG["STINGAR"]
         BHR["bhr-site<br/>publist / query_limited"]
-        FW["Palo Alto NGFW<br/>STINGAR EDL rule"]
-        STG --> BHR --> FW
+        BH["BH router<br/>SDN API, instantaneous"]
+        FW["Palo Alto NGFW<br/>EDL ~5 min refresh"]
+        STG --> BHR
+        BHR --> BH
+        BHR --> FW
     end
 
     subgraph LIST["Authoritative blocked-IP list (join key)"]
@@ -72,10 +80,10 @@ flowchart TB
 
     subgraph MEASURE["Confirmation plane (NEW)"]
         LOG["PAN Traffic logs<br/>action = deny / drop"]
-        ES["Elasticsearch<br/>pan-traffic-* (stingar-efk)"]
+        SIEM["Splunk or ES<br/>pan-traffic / deny export"]
         CORR["Consumer<br/>join denies ⋈ blocked-IP list<br/>by src_ip + time window"]
         RDS[("Redis<br/>qob:fw_denies / edge_confirmed")]
-        LOG --> ES --> CORR
+        LOG --> SIEM --> CORR
         BHR -.-> CORR
         CORR --> RDS
     end
@@ -94,7 +102,7 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    PAN["Palo Alto denies"] --> SYS["Syslog → ES"]
+    PAN["Palo Alto denies"] --> SYS["Syslog → Splunk or ES"]
     SYS --> READ["poll_fw: read new denies<br/>filter rule = STINGAR-EDL"]
     LIST["BHR block list"] --> MATCH["match IP + active window"]
     READ --> MATCH --> COUNT["count per IP per day"]
@@ -114,8 +122,8 @@ flowchart TB
     end
 
     subgraph ENFORCE["Enforcement (unchanged)"]
-        BH["Black-hole router"]
-        FW["Palo Alto NGFW"]
+        BH["Black-hole router<br/>upstream of PAN"]
+        FW["Palo Alto NGFW<br/>EDL up to 7d"]
         BHR --> BH
         BHR --> FW
     end
@@ -131,10 +139,10 @@ flowchart TB
 
     subgraph MEASURE2["Part 2 — FW confirmation (planned)"]
         LOG["PAN Traffic logs"]
-        ES["Elasticsearch"]
+        SIEM["Splunk or ES"]
         J2["correlate_fw_denies()"]
         R2["Redis qob:fw_denies"]
-        FW --> LOG --> ES --> J2
+        FW --> LOG --> SIEM --> J2
         BHR --> J2 --> R2
     end
 
@@ -159,8 +167,14 @@ flowchart TB
 **Not in scope:** Threat logs, zone-protection drops, `show counter global`
 discards. Those are different enforcement layers (`docs/black_hole_blocking.md`).
 
-**Match field:** `src_ip` by default (source-based blocks / RTBH alignment).
-Confirm with security whether the EDL rule matches source or destination (§10).
+**Match field:** `src_ip` by default (source-based RTBH — **confirmed by neteng
+2026**). Still confirm the STINGAR EDL rule matches source vs destination on
+PAN (§10).
+
+**Lineage:** Bad-actor / EDL feeds include blocks from honeypot and non-honeypot
+detections. There is **no** “blocked because of honeypot” flag on the firewall
+feed. Attribute `indicator_id` via BHR + Cowrie/STINGAR session data, not from
+the deny log alone.
 
 **Granularity:** One Traffic log row ≈ one denied session (exact count; no
 sampling scale). Optional `bytes` field stored but **not** added to
@@ -244,10 +258,22 @@ score time.
 | Priority | Adapter | When |
 | --- | --- | --- |
 | 1 | **CSV / JSONL replay** | Tests, Phase 0 sample export |
-| 2 | **Elasticsearch** | Default production (`stingar-efk` PAN traffic index) |
-| 3 | **PAN XML API** | Sites without syslog→ES; backfill only |
+| 2 | **Splunk** | Duke production default (~30d retention); targeted queries only |
+| 3 | **Elasticsearch** | If `stingar-efk` PAN traffic index is still in use post-Forewarned |
+| 4 | **PAN XML API** | Backfill or sites without SIEM export |
 
-### 7.1 Elasticsearch (default)
+### 7.1 Splunk (Duke production default)
+
+PAN Traffic denies land in **Splunk** today (~30 days retention). Post-Forewarned
+migration status is unclear — confirm with security/data team whether Splunk
+remains the deny source or ES replaces it. Ask Hugh about the **SIF feed** for
+block lineage exports.
+
+Do **not** pull full-month deny universes (millions/billions of events); neteng
+can help with a **narrow export** filtered to STINGAR EDL rule + blocked-IP
+sample. Parse into `FwDenyRecord` and reuse `join_fw_denies.correlate()`.
+
+### 7.2 Elasticsearch (if available)
 
 Mirror `qob/ingest/flow_es.py`: push aggregation into ES, read back small
 `(ip, window)` buckets. Filter on `action`, `rule.name`, time range, and
@@ -265,7 +291,7 @@ firewall:
     timestamp: "@timestamp"
 ```
 
-### 7.2 PAN XML API (optional)
+### 7.3 PAN XML API (optional)
 
 Async job pattern from `docs/black_hole_blocking.md`:
 
@@ -276,7 +302,7 @@ GET type=log&log-type=traffic&query=(action eq deny) and (rule eq 'STINGAR-EDL')
 
 Poll every 5–15 minutes; respect API rate limits.
 
-### 7.3 CSV fixture schema (tests)
+### 7.4 CSV fixture schema (tests)
 
 ```csv
 ts,src,dst,action,rule,device,bytes
@@ -309,32 +335,49 @@ QoB_raw = impact_score + confirmation_score + …   # other components later
 
 Missing FW data → `edge_confirmed = false` (not an error).
 
+**Production expectation (neteng 2026):** BHR/black-hole is **upstream of PAN**
+and applies **instantaneously**. PAN EDL refreshes every **~5 minutes** and
+holds blocks up to **7 days**. There is a **overlap window** where both BH and
+FW block the same IP, but steady-state attacker traffic often never reaches PAN
+— so **high BH + zero FW is normal**, not proof that FW is broken.
+
 **Interpretation:**
 
 | BH | FW | Meaning |
 | --- | --- | --- |
-| High | High | Strong block, edge confirmed |
-| High | Zero | BH working; FW not promoted or path bypasses FW |
-| Zero | High | Long-term FW-only stage (`fw_long_term`) |
-| High | Zero for days | Ops signal — EDL sync broken? |
+| High | High | Overlap window or traffic reached PAN before BH; edge confirmed |
+| High | Zero | **Expected** when BH upstream is working; FW may not see packets |
+| Zero | High | Long-term FW-only stage (BHR entry expired; PAN holds up to 7d) |
+| High | Zero for days | Possible EDL sync issue — only if BH impact also dropped |
 
 ---
 
-## 10. Discovery checklist (security team — gate Part 2 build)
+## 10. Discovery checklist
 
-Answer before wiring production ES queries:
+### Resolved (neteng, 2026)
+
+| # | Question | Answer |
+| --- | --- | --- |
+| 5 | FW promotion lag after BH? | BHR **instantaneous**; PAN EDL **~5 min** refresh. Overlap where both block. |
+| 7 | BHR scope for BH and FW? | STINGAR → **BHR output plugin** feeds BH; same intel also drives **bad-actor / EDL** feeds on PAN (mixed sources). **BHR list** remains QoB join key. |
+| 8 | Packet path — BH before PAN? | **Yes.** BHR sits **in front of** firewalls. FW denies often **rare/zero** when BH works. |
+| — | RTBH direction? | **All source-based** → correlate on `src_ip` (see Part 1). |
+| — | BH trigger mechanism? | **Custom SDN API** (replaced ExaBGP); lab still uses ExaBGP stand-in. |
+| — | FW block duration? | Up to **7 days** on Palo Alto. |
+| — | Honeypot-only blocks? | **No** — bad-actor feeds mix detections. Need Cowrie/STINGAR `indicator_id` lineage. |
+
+### Still open
 
 1. Exact STINGAR EDL **rule name(s)** on PAN / Panorama.
-2. EDL matches **source** or **destination** IP?
+2. EDL matches **source** or **destination** IP? (RTBH is source-based; EDL direction unconfirmed.)
 3. Denies logged at full rate (suppression / log forwarding limits)?
-4. ES **index pattern** and **field names** for a redacted Traffic deny sample.
-5. FW promotion lag after BH (typical delay).
-6. NAT: outer vs inner IP for `src_ip` in logs.
-7. Is BHR the authoritative list for **both** BH and FW blocks, or FW-only?
-8. Packet path: does BH sit upstream of PAN (FW denies may be rare even when blocking works)?
+4. **Splunk** index/sourcetype and field names for a redacted Traffic deny sample
+   (or confirm ES if Forewarned migration moved logs). Ask **Hugh** about **SIF feed**.
+5. NAT: outer vs inner IP for `src_ip` in logs.
+6. Part 1: NetFlow **sampling rate** and ingress **Null0** accounting on RTBH routers.
 
-**Exit artifact:** 1 week ES export of `(action deny) AND (rule = STINGAR-…)`
-with 2–3 `_source` documents for field mapping.
+**Exit artifact:** Narrow Splunk or ES export of `(action deny) AND (rule = STINGAR-…)`
+with 2–3 sample rows for field mapping — not a full-month pull.
 
 ---
 
@@ -342,9 +385,10 @@ with 2–3 `_source` documents for field mapping.
 
 ### Phase 2a — Discovery (1 week)
 
-- [ ] Complete §10 checklist.
-- [ ] Redacted ES sample on disk.
-- [ ] Confirm non-zero `fw_deny_count` for a known blocked IP.
+- [x] Path, timing, BHR scope (§10 resolved table).
+- [ ] Splunk or ES field map + redacted deny sample (ask Hugh / SIF feed).
+- [ ] Exact PAN EDL rule name(s).
+- [ ] Confirm non-zero `fw_deny_count` for a known blocked IP **during overlap window** (may be zero outside it).
 
 ### Phase 2b — Core (1 week)
 
@@ -352,10 +396,10 @@ with 2–3 `_source` documents for field mapping.
 - [ ] `fw_denies.load_csv()` + fixtures + `test_join_fw.py`.
 - [ ] `confirmation_score()` in `scoring.py`.
 
-### Phase 2c — ES adapter (1 week)
+### Phase 2c — SIEM adapter (1 week)
 
-- [ ] `EsFwDenySource` (pattern from `flow_es.py`).
-- [ ] CI replay against captured ES JSON export.
+- [ ] `SplunkFwDenySource` or `EsFwDenySource` (whichever is live post-Forewarned).
+- [ ] CI replay against captured Splunk/ES JSON export.
 
 ### Phase 2d — Collector + Redis (1 week)
 
@@ -371,14 +415,20 @@ with 2–3 `_source` documents for field mapping.
 ## 12. Pitfalls
 
 1. **Double counting with BH** — same packets may never reach FW if BH drops
-   first; keep streams separate.
-2. **Promotion lag** — correlate using BHR `added`/`removed`, not “on FW list now”.
+   first (confirmed: BH upstream); keep streams separate.
+2. **Promotion lag** — BHR instantaneous, PAN ~5 min; correlate using BHR
+   `added`/`removed`, not “on FW list now”. FW may hold blocks up to **7 days**
+   after BHR entry expires.
 3. **Wrong log type** — Threat / zone-protection ≠ EDL confirm.
 4. **Session-end logging** — deny may appear minutes after packet; use
    `receive_time` / `@timestamp`.
-5. **Log suppression** — `fw_deny_count` may be a lower bound under heavy scan volume.
-6. **NAT** — document which IP is scored (§10 open question #6).
-7. **Multi-FW** — sum across fleet or dedupe by session id per device.
+5. **Log suppression / Splunk volume** — billions of deny events/month; use
+   filtered exports, not full pulls. `fw_deny_count` may be a lower bound.
+6. **Mixed bad-actor feed** — cannot tell honeypot vs other detection from PAN
+   deny alone; join `indicator_id` from BHR/Cowrie.
+7. **NAT** — document which IP is scored (§10 open question #5).
+8. **Multi-FW** — sum across fleet or dedupe by session id per device.
+9. **Forewarned migration** — confirm whether Splunk, ES, or both remain authoritative.
 
 ---
 
@@ -387,7 +437,7 @@ with 2–3 `_source` documents for field mapping.
 | Layer | Approach |
 | --- | --- |
 | Join | `test_join_fw.py` + `fixtures/fw_denies.csv` |
-| Adapter | Record/replay ES PAN traffic JSON |
+| Adapter | Record/replay Splunk or ES PAN traffic JSON |
 | Integration | Weekly CI replay (no live PAN in CI) |
 | Validation | Spot-check top confirmed IPs in PAN Traffic log GUI |
 
@@ -403,11 +453,11 @@ firewall:
   match_field: src_ip
   deny_actions: [deny, drop, reset-both]
   rules:
-    - STINGAR-EDL-BLOCK
-  source: elasticsearch
+    - STINGAR-EDL-BLOCK     # exact name TBD — §10
+  source: splunk              # splunk | elasticsearch | pan_api | csv
+  poll_interval_seconds: 300  # PAN EDL ~5 min refresh
   es_url: https://es.example.edu:9200
   es_index: "pan-traffic-*"
-  poll_interval_seconds: 300
   fields:
     src_ip: source.ip
     dst_ip: destination.ip
