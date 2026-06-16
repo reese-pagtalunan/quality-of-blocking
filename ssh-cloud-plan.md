@@ -14,6 +14,89 @@ equivalence tables only.
 
 ---
 
+## Document overview
+
+End-to-end map of this plan — how the sections connect, what you build in order,
+and where on-prem QoB maps into the cloud.
+
+```mermaid
+flowchart TB
+    subgraph context ["§0 — Context (on-prem parity)"]
+        ONPREM["Duke on-prem<br/>Cowrie → STINGAR → BHR<br/>BH router + Palo Alto"]
+        CLOUD["Azure cloud<br/>Cowrie VM → STINGAR → BHR<br/>NSG deny + flow logs"]
+        ONPREM -.->|"same QoB idea"| CLOUD
+    end
+
+    subgraph discovery ["§8 — Discovery gate (before build)"]
+        D1["Drop point: NSG vs route blackhole?"]
+        D2["NSG rule limits + flow log fields"]
+        D3["Cowrie → STINGAR path in cloud"]
+    end
+
+    subgraph steps ["§3–§6 — Build pipeline (5 steps)"]
+        S1["Step 1 — Deploy §3<br/>VNet + subnets + Cowrie VM<br/>NSG + flow logs enabled"]
+        S2["Step 2 — Blocklist sync §4<br/>BHR feed → NSG API<br/>deny src_ip rules"]
+        S3["Step 3 — Impact telemetry §5<br/>Parse flow logs → FlowRecord<br/>join_flows → Redis qob:hits"]
+        S4["Step 4 — Confirm telemetry §5<br/>Count REJECT flows<br/>→ Redis qob:fw_denies"]
+        S5["Step 5 — Validate §6<br/>Attack blocked, mgmt OK<br/>Redis keys populate"]
+        S1 --> S2 --> S3 --> S4 --> S5
+    end
+
+    subgraph optional ["§5 — Optional analysis"]
+        ATTACK["Cowrie logs → ATT&CK<br/>T1110 brute force, T1552 creds, T1059 shell"]
+    end
+
+    subgraph code ["§7 — Code reuse"]
+        REUSE["Reuse: join_flows, bhr_list<br/>flow_redis, scoring"]
+        NEW["Build: azure_flow_logs<br/>azure_nsg, poll_azure_flows"]
+        REUSE --> NEW
+    end
+
+    subgraph phases ["§9 — Implementation phases"]
+        P0["Phase 0 — Manual lab"]
+        P1["Phase 1 — CSV fixtures + tests"]
+        P2["Phase 2 — NSG sync + poll → Redis"]
+        P3["Phase 3 — Merge with on-prem compute_qob"]
+        P0 --> P1 --> P2 --> P3
+    end
+
+    subgraph score ["QoB outcome"]
+        IMPACT["impact_score<br/>from flow bytes/hits"]
+        CONFIRM["confirmation_score<br/>edge_confirmed from REJECTs"]
+        MERGE["Per IP per day"]
+        IMPACT --> MERGE
+        CONFIRM --> MERGE
+    end
+
+    subgraph excluded ["Non-goals §0 / §1"]
+        NO["No K8s, Cilium, HTTP/gRPC L7, WAF"]
+    end
+
+    context --> discovery
+    discovery --> S1
+    S2 -.-> REUSE
+    S3 --> IMPACT
+    S4 --> CONFIRM
+    S1 -.-> ATTACK
+    S5 --> P0
+    P3 --> MERGE
+```
+
+**Reading the diagram**
+
+| Section | What it covers |
+| --- | --- |
+| §0 | On-prem ↔ cloud component mapping; add-vs-mark semantics |
+| §1 | Goal (Azure VPC + Cowrie + NSG blocking) and non-goals |
+| §2 | Runtime architecture diagram (detection → enforce → measure → score) |
+| §3–§6 | Five build steps: deploy → sync blocklist → measure impact → confirm → validate |
+| §7 | Existing Python modules to reuse vs new Azure ingest modules |
+| §8 | Questions to answer before writing automation |
+| §9 | Phased rollout from manual lab to on-prem merge |
+| §10 | Links to README, on-prem plans, and RTBH lab |
+
+---
+
 ## 0. Relationship to the QoB plan (read first)
 
 This track reproduces on-prem Parts 1 and 2 in a cloud VPC. The mapping:
