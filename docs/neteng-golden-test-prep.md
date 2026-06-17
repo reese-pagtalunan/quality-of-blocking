@@ -42,6 +42,21 @@ You **do not** need the blocklist before the meeting — that is a neteng discov
 (see §3 below; **Splunk export is a likely answer**). Start the consumer once you have
 `/tmp/publist.csv`, which may be mid-session.
 
+### 0. Python on macOS (one-time)
+
+macOS does not provide a `python` command — use **`python3`**. Homebrew Python also
+blocks system-wide `pip install` (PEP 668), so use a venv in the repo root:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[redis]'
+```
+
+Keep the venv active in the terminal where you run `lab/consumer/run.py` and
+`lab/test/verify.py`. (The existing `.venv` from the containerlab VM is Linux-only;
+create a fresh one on your Mac if needed.)
+
 ### 1. goflow2
 
 Note the host IP neteng will point routers at.
@@ -177,7 +192,7 @@ export REDIS_PORT=6379
 export FLOW_FILE=/tmp/goflow2/flows.json
 export BLOCKLIST=/tmp/publist.csv
 export WINDOW=86400
-python lab/consumer/run.py
+python3 lab/consumer/run.py    # or: source .venv/bin/activate && python lab/consumer/run.py
 ```
 
 Leave this running in a terminal. The lab consumer **loads the blocklist only at
@@ -189,7 +204,7 @@ startup** — if the list changes during the meeting, re-pull and restart.
 wc -l /tmp/goflow2/flows.json
 # May be 0 until routers export — that's fine.
 
-python lab/test/verify.py --redis-host localhost --src 0.0.0.0
+python3 lab/test/verify.py --redis-host localhost --src 0.0.0.0
 # Confirms Redis read path works (may show no counts yet).
 ```
 
@@ -282,7 +297,7 @@ For test IP `$TEST_IP`:
 grep "$TEST_IP" /tmp/goflow2/flows.json | tail -3
 
 # 2. Redis counters via verify script
-python lab/test/verify.py --redis-host localhost --src "$TEST_IP" --label "golden"
+python3 lab/test/verify.py --redis-host localhost --src "$TEST_IP" --label "golden"
 
 # 3. Or directly
 redis-cli GET "qob:hits:${TEST_IP}:$(date -u +%Y%m%d)"
