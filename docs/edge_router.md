@@ -1,50 +1,55 @@
 # Edge Router to STINGAR NetFlow / sFlow Integration
 
-**Default platform:** Cisco IOS-XE (Flexible NetFlow), as the most common platform across STINGAR's customer base. Step 1 also has full sections for Juniper JunOS, Arista EOS, MikroTik RouterOS, and HPE Aruba CX, plus brief reference entries for Cisco Meraki, Huawei VRP, VyOS, pfSense / OPNsense, and Ubiquiti EdgeRouter. All platforms target the same goflow2 listener; Step 2 onwards (goflow2 container, fluentd source, ports, validation) is vendor-agnostic. The receiving side is STINGAR's `stingar-efk` stack extended with a [goflow2](https://pkg.go.dev/github.com/netsampler/goflow2/v3) sidecar container.
+**Default platform:** Cisco IOS-XE (Flexible NetFlow), as the most common platform across STINGAR's customer base. Step 1 also has full sections for Juniper JunOS, Arista EOS, MikroTik RouterOS, and HPE Aruba CX, plus brief reference entries for Cisco Meraki, Huawei VRP, VyOS, pfSense / OPNsense, and Ubiquiti EdgeRouter. All platforms target the same goflow2 listener; Step 2 (goflow2) is shared; **Step 2b (Redis)** or **Step 3 (Elasticsearch)** is chosen per customer. The receiving side is STINGAR's `stingar-efk` stack extended with a [goflow2](https://pkg.go.dev/github.com/netsampler/goflow2/v3) sidecar container.
 
-**Scope:** End-to-end configuration for connecting a Cisco edge router to a STINGAR management server so that the router's NetFlow / IPFIX / sFlow telemetry lands in STINGAR's existing Elasticsearch, queryable from STINGAR's existing Kibana, alongside honeypot events. This document operationalizes the architectural recommendation in [`flow_collector_research.md`](flow_collector_research.md) and the consumption-side discussion in [`blackhole_logging_report.md`](blackhole_logging_report.md). It is intentionally a "what to type, in what order" reference rather than a design document.
+**Scope:** End-to-end configuration for connecting a customer edge router to a STINGAR management server so that NetFlow / IPFIX / sFlow telemetry is decoded by goflow2 and stored for blocking-impact visibility. Two **sink profiles** are documented:
 
-**Context for STINGAR operators:** the v2.4+ BGP-RTBH feed candidate (Section 9 of [`roadmap.md`](roadmap.md)) produces blocklist data that customers will route into their edge routers to drop attacker traffic at line rate. The flow telemetry configured below is what closes the loop -- it produces the "what got blackholed by STINGAR-fed intel" evidence stream that customers need for monitoring and reporting.
+| Profile | Steps | Best for |
+| --- | --- | --- |
+| **A — Redis (QoB)** | Step 2 + **Step 2b** | Per-IP `bh_hits` / `bh_bytes`, ~7-day TTL, QoB scoring; keeps the flow firehose off Elasticsearch |
+| **B — Elasticsearch (Kibana)** | Step 2 + **Step 3** | Ad-hoc flow drill-down, Kibana dashboards, longer retention |
+
+Step 1 (router export), Step 2 (goflow2), Step 4 (firewall), and Step 5 (validation) apply to both profiles. See [`Flow_Collector.md`](./Flow_Collector.md) for when to pick each profile.
+
+This document operationalizes [`Flow_Collector.md`](./Flow_Collector.md) and the producer-side discussion in [`black_hole_logging.md`](./black_hole_logging.md). It is intentionally a "what to type, in what order" reference rather than a design document.
+
+**Context for STINGAR operators:** customers who feed STINGAR blocklist / BGP-RTBH intel into their edge routers need flow telemetry to close the loop on "what got blackholed, and how much?" The join key is the **STINGAR blocklist export** (CSV or JSON with `cidr`, `indicator_id`, `added`, `removed`) — the same shape as BHR `publist.csv` used in [`qob/ingest/bhr_list.py`](../qob/ingest/bhr_list.py).
 
 ---
 
 ## Target topology
 
-The architecture adds one new sidecar container (`goflow2`) to the existing `stingar-efk` stack and reuses the existing fluentd + Elasticsearch + Kibana. Honeypot events continue flowing through their existing path unchanged.
+Step 1 and Step 2 are identical for both profiles. Pick **one** sink path after goflow2 decodes flows to JSON.
+
+### Profile A — Redis (QoB / blocking-impact counters)
 
 ```mermaid
 flowchart LR
-    subgraph "Customer edge"
-        R[Cisco IOS-XE<br/>edge router]
-    end
-
-    subgraph "Enhanced stingar-efk stack"
-        GF[goflow2<br/>:2055 NetFlow/IPFIX<br/>:6343 sFlow<br/>Go, ~1M flows/sec]
-        FD[fluentd<br/>tail input or<br/>forward input]
-        ES[(Elasticsearch<br/>stingar-flows-*)]
-        K[Kibana<br/>flow dashboards]
-        FB[fluent-bit<br/>existing honeypot<br/>aggregator]
-        H[(honeypot events<br/>stingar-events-*)]
-    end
-
-    R -- "UDP/2055<br/>NetFlow v9 / IPFIX" --> GF
-    R -- "UDP/6343<br/>sFlow v5" --> GF
-    GF -- "JSON file or<br/>Kafka or<br/>fluentd forward" --> FD
-    FD --> ES
-    ES --> K
-    FB --> FD
-    FD --> H
-    H --> K
-
-    style GF fill:#cfe2ff
-    style FD fill:#cfe2ff
-    style ES fill:#fff3cd
-    style K fill:#d1e7dd
-    style FB fill:#e2e3e5
-    style H fill:#fff3cd
+    R[Edge router] -- "UDP/2055" --> GF[goflow2]
+    BL[STINGAR blocklist<br/>CSV / JSON] --> CON[qob-consumer]
+    GF -- "flows.json" --> CON
+    CON --> RDS[(Redis<br/>qob:hits / qob:rank<br/>TTL ~7d)]
+    RDS --> UI[RedisInsight / QoB API]
 ```
 
-The two new pieces compared to today's STINGAR: the goflow2 container and a new fluentd source + index for flow data.
+### Profile B — Elasticsearch (Kibana dashboards)
+
+```mermaid
+flowchart LR
+    subgraph "Enhanced stingar-efk stack"
+        GF[goflow2]
+        FD[fluentd]
+        ES[(Elasticsearch<br/>stingar-flows-*)]
+        K[Kibana]
+        FB[fluent-bit]
+        H[(stingar-events-*)]
+    end
+    R[Edge router] --> GF
+    GF --> FD --> ES --> K
+    FB --> FD --> H --> K
+```
+
+Honeypot events continue through the existing fluent-bit path unchanged. Profile B adds fluentd ingest for raw flows; Profile A adds a Python consumer that **joins flows to the blocklist at ingest** and only stores per-IP counters in Redis.
 
 ---
 
@@ -219,7 +224,7 @@ protocols {
 
 - **Inline-JFlow requires explicit FPC sampling-instance binding** (the `chassis { fpc 0 { sampling-instance ... } }` stanza). Forgetting it makes the sampling fall back to the routing engine, which collapses under any real flow rate.
 - **Two distinct sample paths.** `family inet sampling { input; output; }` controls IPv4 sampling; `family inet6 sampling { ... }` controls IPv6 sampling separately. Configure both if you want dual-stack visibility.
-- **JunOS does not have a direct "monitor discard interface" feature** equivalent to Cisco's `flow monitor STINGAR-MON output` on `Null0`. Use the firewall filter pattern from [`blackhole_logging_report.md`](blackhole_logging_report.md) Part 2 alongside Inline-JFlow for full blackhole visibility -- the firewall filter's `count` + `syslog` actions are complementary to NetFlow.
+- **JunOS does not have a direct "monitor discard interface" feature** equivalent to Cisco's `flow monitor STINGAR-MON output` on `Null0`. Use the firewall filter pattern from [`black_hole_logging.md`](./black_hole_logging.md) alongside Inline-JFlow for full blackhole visibility -- the firewall filter's `count` + `syslog` actions are complementary to NetFlow.
 
 ---
 
@@ -357,9 +362,9 @@ For platforms outside the four main vendors above, this reference table covers t
 
 ---
 
-## Step 2: goflow2 container in the stingar-efk stack
+## Step 2: goflow2 container in the stingar-efk stack (both profiles)
 
-Add a new service to `infra/docker/docker-compose.yml`:
+Add a new service to `infra/docker/docker-compose.yml`. Use profile `flows` for Elasticsearch (Step 3) or `flows-redis` for Redis (Step 2b); **Step 2 (goflow2) is required for either**.
 
 ```yaml
   goflow2:
@@ -390,14 +395,134 @@ volumes:
 Notes:
 
 - **`network_mode: host`** sidesteps Docker's per-port mapping overhead for UDP receive. If you must use bridged networking, replace it with `ports: ["2055:2055/udp", "6343:6343/udp"]` -- works fine at low rates, can drop packets above ~50K flows/sec on a busy bridge.
-- **`-transport=file`** writes one JSON-per-line stream that fluentd tails (Step 3). Alternative transports are `kafka` (for higher scale) and `stdout` (for debugging only -- containerized stdout will be log-rotated by Docker).
-- **`-format=json`** uses goflow2's stable JSON schema. `protobuf` and `text` formats are also available; JSON is the right pick for fluentd ingest.
+- **`-transport=file`** writes one JSON-per-line stream shared by **Step 2b** (consumer tails the file) and **Step 3** (fluentd tails the same file). Alternative transports are `kafka` (for higher scale) and `stdout` (for debugging only -- containerized stdout will be log-rotated by Docker).
+- **`-format=json`** uses goflow2's stable JSON schema. `protobuf` and `text` formats are also available; JSON is the right pick for both sink paths.
 - **Image tag.** `latest` is fine for development; **pin to a specific commit hash for production** to avoid silent upgrades. The goflow2 v3 line is the active development branch. Pinning pattern: `netsampler/goflow2:v2.2.6` for the stable v2 line.
 - **Resource caps.** 1 GB / 1 vCPU is generous for STINGAR's typical small-to-medium customer. The Go binary's actual resident set is ~30-100 MB; the caps exist to prevent runaway behaviour if a router misconfigures its sampling rate to 1:1 on a 10 Gb link.
 
 ---
 
-## Step 3: fluentd source for goflow2 output
+## Step 2b: QoB consumer + Redis (Profile A — `flows-redis`)
+
+Use this path when the customer needs **per-IP blocking-impact counters** (QoB `bh_hits` / `bh_bytes`) with ~7-day retention, without indexing every flow record in Elasticsearch. Implementation lives in the [`quality-of-blocking`](../README.md) repo: [`qob/ingest/flow_redis.py`](../qob/ingest/flow_redis.py), [`lab/consumer/run.py`](../lab/consumer/run.py) (production template).
+
+### How it works
+
+1. **goflow2** writes JSON lines to `/var/log/goflow2/flows.json` (Step 2).
+2. **qob-consumer** tails that file, parses each record (`src_addr`, `packets`, `bytes`, `sampling_rate`).
+3. Consumer loads the **STINGAR blocklist** and joins each flow's `src_addr` to blocked CIDRs active at the flow timestamp (source-based RTBH).
+4. Matched traffic is aggregated into **Redis** keys: `qob:hits:{ip}:{YYYYMMDD}`, `qob:bytes:...`, `qob:rank:{day}` with an 8-day TTL.
+
+Design detail: [`plan-netflow-counting.md`](../plan-netflow-counting.md) §3.1.
+
+### docker-compose services (`profiles: ["flows-redis"]`)
+
+Add alongside the Step 2 `goflow2` service. Share the `goflow2-logs` volume between goflow2 and the consumer.
+
+```yaml
+  redis:
+    image: redis:7-alpine
+    container_name: stingar-qob-redis
+    profiles: ["flows-redis"]
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - qob-redis-data:/data
+    # Internal-only on the compose network; expose 6379 only if RedisInsight runs on the host.
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  qob-consumer:
+    # Build from quality-of-blocking: lab/consumer/Dockerfile or a thin wrapper image.
+    image: stingar/qob-consumer:latest
+    container_name: stingar-qob-consumer
+    profiles: ["flows-redis"]
+    restart: always
+    depends_on:
+      - goflow2
+      - redis
+    volumes:
+      - goflow2-logs:/var/log/goflow2:ro
+      - qob-blocklist:/var/lib/qob
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      FLOW_FILE: /var/log/goflow2/flows.json
+      # Local path the consumer reads; refresh via cron/sidecar curl (see below).
+      BLOCKLIST: /var/lib/qob/blocklist.csv
+      WINDOW: "86400"
+    command: python /app/lab/consumer/run.py
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: stingar-redisinsight
+    profiles: ["flows-redis"]
+    restart: always
+    ports:
+      - "5540:5540"
+
+volumes:
+  goflow2-logs:    # shared with goflow2 (Step 2)
+  qob-redis-data:
+  qob-blocklist:
+```
+
+Bring the stack up:
+
+```bash
+docker compose --profile flows-redis up -d goflow2 redis qob-consumer redisinsight
+```
+
+### Blocklist feed (join key)
+
+The consumer needs a CSV or JSON file in the same shape as BHR `publist.csv`:
+
+```text
+cidr,indicator_id,source,why,added,removed,ident
+203.0.113.50/32,ind-0002,STINGAR,SSH brute force,2026-06-10T01:00:00Z,,stingar
+```
+
+Point STINGAR's blocklist export at `/var/lib/qob/blocklist.csv` inside the consumer container. Until [`collectors/poll_flows.py`](../collectors/poll_flows.py) ships live polling, refresh with a **cron job or sidecar** on the STINGAR host:
+
+```bash
+# Example: refresh every 5 minutes, then restart consumer to pick up changes.
+# (v2: consumer will hot-reload without restart.)
+*/5 * * * * curl -fsS -o /var/lib/qob/blocklist.csv \
+  "https://<stingar-host>/api/v1/blocklist/export.csv" \
+  && docker restart stingar-qob-consumer
+```
+
+Replace the URL with your STINGAR blocklist endpoint. If the site uses BHR directly, use `https://<bhr-host>/bhr/publist.csv` — [`bhr_list.py`](../qob/ingest/bhr_list.py) accepts either.
+
+### Environment variables
+
+| Variable | Example | Purpose |
+| --- | --- | --- |
+| `REDIS_HOST` | `redis` | Redis hostname on the compose network |
+| `REDIS_PORT` | `6379` | Redis port |
+| `FLOW_FILE` | `/var/log/goflow2/flows.json` | goflow2 JSON output (shared volume) |
+| `BLOCKLIST` | `/var/lib/qob/blocklist.csv` | Path to blocklist snapshot inside the container |
+| `WINDOW` | `86400` | Aggregation window in seconds (daily buckets) |
+
+### Multi-router deployments
+
+When several edge routers export to the same goflow2 instance, enable cross-batch dedupe in the consumer via [`RedisQobStore.seen_flow()`](../qob/ingest/flow_redis.py) before counting (same 5-tuple seen on multiple routers). Document each router's `sampling_rate` in site config — the consumer scales counts by `sampling_rate` from the flow record.
+
+### Profile A vs filtering on `Null0`
+
+Profile B (Elasticsearch) can tag `is_blackhole` when `out_if_name == "Null0"`. Profile A does **not** require that field: it joins **all** exported flows against the **blocklist** on `src_addr`. That matches source-based RTBH where the blocked entry is the attacker's source IP. Ingress flow monitors (Step 1) must still see attacker traffic before the drop.
+
+### Optional: RedisInsight
+
+Open `http://<stingar-host>:5540`, connect to `redis:6379`, and browse keys `qob:hits:*`, `qob:rank:*`. For scripted checks use [`lab/test/verify.py`](../lab/test/verify.py):
+
+```bash
+python lab/test/verify.py --redis-host localhost --src <blocked-ip> --label golden
+```
+
+---
+
+## Step 3: fluentd source for goflow2 output (Profile B — `flows`)
 
 Add the following to the central fluentd's config (the file mounted into the fluentd container as `/fluentd/etc/fluent.conf` or via an `@include` snippet):
 
@@ -479,7 +604,9 @@ For cloud-hosted STINGAR with security groups (Azure NSG, AWS SG, GCP firewall),
 
 ## Step 5: validation
 
-Verify each layer separately so you know which one is broken if nothing appears. The router-side check (step 1 below) varies by vendor -- see the per-vendor reference table that follows. Everything else (steps 2-6) is vendor-agnostic.
+Verify each layer separately so you know which one is broken if nothing appears. The router-side check (step 1 below) varies by vendor -- see the per-vendor reference table that follows. Steps 2-3 (goflow2) are the same for both profiles; steps 4+ depend on which sink you deployed.
+
+### Shared checks (both profiles)
 
 ```bash
 # 1. Router is exporting (Cisco IOS-XE CLI; for other vendors see the table below)
@@ -494,14 +621,39 @@ sudo tcpdump -i any -n udp port 6343 -c 5
 # 3. goflow2 is decoding (read the container log)
 docker logs stingar-goflow2 --tail 20
 docker exec stingar-goflow2 tail -n 5 /var/log/goflow2/flows.json
+```
 
-# 4. fluentd is tailing and shipping
+### Profile A — Redis (Step 2b)
+
+```bash
+# 4a. Consumer is running and flushing
+docker logs stingar-qob-consumer --tail 30
+# Expect lines like: flushed N flows -> M (ip,day) counts
+
+# 5a. Blocklist is present and contains the test IP
+docker exec stingar-qob-consumer head -3 /var/lib/qob/blocklist.csv
+grep '<test-ip>' /var/lib/qob/blocklist.csv   # on host if volume-mounted
+
+# 6a. Redis counters for a known blocked source IP
+redis-cli GET "qob:hits:<test-ip>:$(date -u +%Y%m%d)"
+redis-cli ZREVRANGE "qob:rank:$(date -u +%Y%m%d)" 0 4 WITHSCORES
+
+# Or use the repo verify script from the STINGAR host:
+python lab/test/verify.py --redis-host localhost --src <test-ip> --label golden
+```
+
+**Pass:** `qob:hits:<test-ip>:<today>` > 0 while the IP is on the blocklist and traffic is hitting the blackhole. Cross-check router Null0 / discard counters (Cisco: `show interface Null0`).
+
+### Profile B — Elasticsearch (Step 3)
+
+```bash
+# 4b. fluentd is tailing and shipping
 docker logs stingar-fluentd | grep stingar.flows | tail -20
 
-# 5. Elasticsearch has the index
+# 5b. Elasticsearch has the index
 curl -s http://localhost:9200/_cat/indices/stingar-flows-* | head
 
-# 6. End-to-end query: top blackholed source IPs in the last 10 minutes
+# 6b. End-to-end query: top blackholed source IPs in the last 10 minutes
 curl -s -X POST http://localhost:9200/stingar-flows-*/_search \
   -H 'Content-Type: application/json' -d '{
   "size": 0,
@@ -521,11 +673,11 @@ curl -s -X POST http://localhost:9200/stingar-flows-*/_search \
 }'
 ```
 
-The last query produces "top 25 attacker IPs whose traffic was blackholed in the last 10 minutes" -- the operational success metric for the BGP-RTBH feed once that feature ships.
+The Elasticsearch query produces "top 25 attacker IPs whose traffic was blackholed in the last 10 minutes" -- the operational success metric for Kibana-based deployments.
 
 ### Per-vendor router-side validation commands
 
-Step 1 above shows Cisco IOS-XE. The exact command to confirm "the router is actually exporting flow data" varies by platform; steps 2-6 are unchanged regardless of source vendor:
+Step 1 above shows Cisco IOS-XE. The exact command to confirm "the router is actually exporting flow data" varies by platform; shared steps 2-3 and profile-specific steps 4-6 apply as above:
 
 | Platform | Router-side validation |
 |---|---|
@@ -572,26 +724,38 @@ If you have the option, **upgrade the router to a Flexible-NetFlow-capable image
 
 For the typical STINGAR customer (university or mid-size enterprise, 1-3 edge routers, ~100 Mbps to a few Gbps of internet traffic, NetFlow sampled at 1:1000):
 
+**Profile A (Redis):**
+
 - goflow2 CPU: well under 10% of one core
 - goflow2 memory: ~50 MB resident
+- qob-consumer CPU: low (Python tail + batch join); scale horizontally if needed
+- Redis memory: small (per-IP daily keys × active blocked IPs × ~8 days); enable AOF
+- No Elasticsearch flow-index disk growth
+
+**Profile B (Elasticsearch):**
+
 - goflow2 disk write rate: ~1-10 MB/min into `flows.json`
-- fluentd record_transformer CPU: ~5-20% of one core (Ruby; this is the new candidate hot spot, not goflow2 itself)
-- Elasticsearch ingest rate: well within the existing STINGAR EFK sizing
+- fluentd record_transformer CPU: ~5-20% of one core (Ruby; candidate hot spot)
+- Elasticsearch ingest rate: well within existing STINGAR EFK sizing
 - Daily flow-data disk consumption: ~100 MB - 1 GB depending on traffic and sampling
 
 For a larger deployment (5-10 routers, sustained 200K+ flows/sec), revisit:
 
 - goflow2's Kafka transport rather than file transport (skips the disk hop)
-- A dedicated fluentd worker just for `stingar.flows` to keep the record_transformer from competing with honeypot event ingest
-- ClickHouse alongside or instead of Elasticsearch for the `stingar-flows-*` data -- see [`flow_collector_research.md`](flow_collector_research.md) for the architectural comparison
+- Profile B: a dedicated fluentd worker for `stingar.flows`
+- Profile A: shard consumers or gate on `seen_flow()` for multi-router dedupe
+- ClickHouse alongside Elasticsearch for Profile B -- see [`Flow_Collector.md`](./Flow_Collector.md)
 
 ---
 
-## Related STINGAR work
+## Related documents
 
-- [`flow_collector_research.md`](flow_collector_research.md) -- architecture survey that arrives at the goflow2-as-sidecar recommendation operationalized in this document. See the "Revisions" section at the top for why `fluent-plugin-netflow` is *not* the recommendation despite appearing in earlier drafts.
-- [`blackhole_logging_report.md`](blackhole_logging_report.md) -- the producer-side companion: where dropped/blackholed packets appear in router logs and what telemetry the router needs to be told to emit. Read this first to understand why the `Null0` egress filter matters.
-- [`blocking_and_blackhole_logging_report.md`](blocking_and_blackhole_logging_report.md) -- combined NGFW + edge-router reference. Part 2 is the same content as `blackhole_logging_report.md` in its own document.
-- [`roadmap.md` Section 9](roadmap.md) -- BGP-RTBH feed export candidate (v2.4+). This document is the consumption-side reference that operationalizes that feature.
-- [`Releases/RELEASE_NOTES_2.3.md`](../Releases/RELEASE_NOTES_2.3.md) -- IDS/IPS Rules feed endpoint shipped in v2.3 (`GET /api/v2/ids-rules/feed?format=suricata|snort`); precedent for the v2.4+ BGP-RTBH feed exporter that this integration sits downstream of.
+| Document | Role |
+| --- | --- |
+| [`Flow_Collector.md`](./Flow_Collector.md) | Sink profiles (Redis vs Elasticsearch); goflow2 rationale |
+| [`black_hole_logging.md`](./black_hole_logging.md) | Router-side RTBH telemetry; why Null0 / ingress monitors matter |
+| [`black_hole_blocking.md`](./black_hole_blocking.md) | NGFW + edge-router logging reference |
+| [`plan-netflow-counting.md`](../plan-netflow-counting.md) | QoB Part 1 design; Redis key schema |
+| [`neteng-golden-test-prep.md`](./neteng-golden-test-prep.md) | 1-hour Profile A validation runbook |
+| [`lab/README.md`](../lab/README.md) | containerlab PoC for goflow2 → consumer → Redis |
 

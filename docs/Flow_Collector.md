@@ -70,7 +70,7 @@ Routers ──NetFlow/IPFIX/sFlow──▶ goflow2 ──JSON──▶ consumer 
                                       │              • qob:hits / qob:bytes / qob:rank
 ```
 
-Implementation: [`qob/ingest/flow_redis.py`](../qob/ingest/flow_redis.py), [`lab/consumer/run.py`](../lab/consumer/run.py). Design detail: [`plan-netflow-counting.md`](../plan-netflow-counting.md) §3.1.
+Implementation: [`qob/ingest/flow_redis.py`](../qob/ingest/flow_redis.py), [`lab/consumer/run.py`](../lab/consumer/run.py). STINGAR docker-compose: [`edge_router.md`](./edge_router.md) **Step 2b**. Design detail: [`plan-netflow-counting.md`](../plan-netflow-counting.md) §3.1.
 
 goflow2 example (matches the lab):
 
@@ -81,7 +81,9 @@ goflow2 -listen netflow://:2055 -format json -transport file \
 
 ### Profile B — Elasticsearch (STINGAR EFK customers)
 
-For customers who want unified honeypot + flow dashboards, add goflow2 as a sidecar in `stingar-efk`. fluentd tails goflow2's JSON into `stingar-flows-*` alongside `stingar-events-*`. Full fluentd source config, docker-compose stanzas, and per-vendor router steps: [`edge_router.md`](./edge_router.md).
+For customers who want unified honeypot + flow dashboards, add goflow2 as a sidecar in `stingar-efk`. fluentd tails goflow2's JSON into `stingar-flows-*` alongside `stingar-events-*`. Full fluentd source config, docker-compose stanzas, and per-vendor router steps: [`edge_router.md`](./edge_router.md) Step 3.
+
+For the **Redis / QoB path**, see [`edge_router.md`](./edge_router.md) **Step 2b** (consumer + Redis compose).
 
 ```mermaid
 flowchart LR
