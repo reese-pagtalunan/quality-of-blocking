@@ -78,6 +78,54 @@ docker run -d --name qob-redis -p 6379:6379 \
   redis:7-alpine redis-server --appendonly yes
 ```
 
+**Scratch files in `/tmp/`:** Using `/tmp/goflow2/` and `/tmp/publist.csv` for the
+golden test is fine — short-lived, matches the Docker volume mount above. macOS may
+clear `/tmp` on reboot; copy artifacts to `~/` after the session (see § capture artifacts).
+This is **not** where production would run long-term (Phase 2 uses managed paths).
+
+### 2b. RedisInsight (optional UI)
+
+The containerlab stack bundles RedisInsight; the golden-test Mac stack does **not** —
+add it when you want a GUI instead of `verify.py` / `redis-cli`:
+
+```bash
+docker run -d --name redisinsight -p 5540:5540 redis/redisinsight:latest
+```
+
+Open **http://localhost:5540** → **Add Redis database**:
+
+| Field | Value |
+| --- | --- |
+| Host | `host.docker.internal` (not `localhost` — Insight runs inside Docker) |
+| Port | `6379` |
+| Username / password | leave empty |
+
+**Desktop alternative:** install [Redis Insight](https://redis.io/insight/) and connect
+to `127.0.0.1:6379` (no auth).
+
+In the UI:
+
+- **Browser** → filter keys `qob:*`
+- `qob:hits:<IP>:YYYYMMDD` / `qob:bytes:...` — per-day counters
+- `qob:rank:YYYYMMDD` — sorted set of top blocked sources
+
+**Workbench** commands:
+
+```text
+KEYS qob:*
+GET qob:hits:<TEST_IP>:20260617
+ZREVRANGE qob:rank:20260617 0 9 WITHSCORES
+```
+
+Redis stays empty until goflow2 receives prod flow, `/tmp/publist.csv` exists, and the
+consumer is running. To clear stale **lab** keys (e.g. `10.0.1.66`) before neteng:
+
+```bash
+docker exec qob-redis redis-cli FLUSHALL
+```
+
+Teardown: `docker stop redisinsight && docker rm redisinsight`
+
 ### 3. Blocked-IP list (blocklist) — **you may not have this yet**
 
 The consumer joins flow records against the **blocked-IP list** (BHR `publist.csv` or
@@ -200,15 +248,110 @@ startup** — if the list changes during the meeting, re-pull and restart.
 
 ### Pre-meeting sanity checks
 
+Run from the **repo root** (`cd ~/Projects/quality-of-blocking` — paths like
+`lab/test/verify.py` are relative to the repo, not your home directory):
+
 ```bash
 wc -l /tmp/goflow2/flows.json
 # May be 0 until routers export — that's fine.
 
+source .venv/bin/activate   # if not already active
 python3 lab/test/verify.py --redis-host localhost --src 0.0.0.0
 # Confirms Redis read path works (may show no counts yet).
 ```
 
+If `verify.py` shows `10.0.1.66` with high counts but `/tmp/goflow2/flows.json` is
+empty, that is **leftover lab data** in Redis — run `FLUSHALL` above, not a golden pass.
+
 Write down your **goflow2 host IP** — that is what neteng types into the flow exporter.
+
+---
+
+## Lab vs golden test (do not mix them up)
+
+| | **Lab** ([`lab/README.md`](../lab/README.md)) | **Golden test** (this doc) |
+| --- | --- | --- |
+| Purpose | Prove **code/pipeline** | Prove **prod router + real blocks** |
+| Router | FRR in containerlab | Production RTBH router |
+| Test IP | `10.0.1.66` (fixture) | Real IP neteng picks |
+| Blocklist | `lab/consumer/blocklist.csv` | `/tmp/publist.csv` (BHR / Splunk) |
+| Flows | Lab `softflowd` → goflow2 in VM | Prod export → goflow2 on your Mac |
+| Pass | Counts rise after ExaBGP block | Prod flows + prod blocklist + Redis + Null0 |
+
+**Golden pass** = a **real** blocked IP appears in **prod** flows, **prod** blocklist,
+and Redis, and neteng sees Null0/discard counters move.
+
+---
+
+## How to check prod blocklist, flows, and Redis
+
+Set `$TEST_IP` once neteng picks a blocked source with live traffic:
+
+```bash
+cd ~/Projects/quality-of-blocking
+source .venv/bin/activate
+export TEST_IP=<real-blocked-ip>
+```
+
+Consumer must be running in another terminal (§4) after `/tmp/publist.csv` exists.
+
+### 1. Prod blocklist — is the IP blocked?
+
+```bash
+wc -l /tmp/publist.csv
+head -3 /tmp/publist.csv
+grep "$TEST_IP" /tmp/publist.csv
+```
+
+**Pass:** `grep` returns at least one line.
+
+**Fail:** no hit → refresh blocklist (BHR / Splunk), restart consumer, or pick another IP.
+
+### 2. Prod flows — is NetFlow seeing that IP?
+
+```bash
+wc -l /tmp/goflow2/flows.json          # run twice, ~30s apart — should grow
+grep "$TEST_IP" /tmp/goflow2/flows.json | tail -3
+tail -1 /tmp/goflow2/flows.json | python3 -m json.tool | head -20
+```
+
+**Pass:** file grows and `grep` shows records with `src_addr` = `$TEST_IP`.
+
+**Fail:** zero lines → layer A (export not reaching goflow2). Lines but no IP → wrong
+router/path or not enough traffic yet.
+
+### 3. Redis — did the consumer join and count it?
+
+```bash
+python3 lab/test/verify.py --redis-host localhost --src "$TEST_IP" --label golden
+
+redis-cli GET "qob:hits:${TEST_IP}:$(date -u +%Y%m%d)"
+redis-cli ZREVRANGE "qob:rank:$(date -u +%Y%m%d)" 0 9 WITHSCORES
+```
+
+Or use RedisInsight (§2b): browse `qob:*` keys or run the same commands in Workbench.
+
+**Pass:** `bh_hits > 0` in `verify.py`, or `GET` returns a number > 0.
+
+**Fail:** flows have the IP but Redis is 0 → consumer not running, stale blocklist, or
+consumer started before publist was updated (re-pull publist and restart).
+
+### 4. Router — neteng checks Null0 (not on your Mac)
+
+```text
+show interface Null0
+show ip route <TEST_IP>
+```
+
+### All-four pass matrix
+
+| Blocklist | Flows | Redis | Null0 | Verdict |
+| --- | --- | --- | --- | --- |
+| yes | yes (`src_addr`) | yes | yes | **Golden pass** |
+| yes | yes | no | — | Join / consumer problem |
+| no | yes | no | — | IP not on blocklist |
+| — | no | — | yes | Accounting problem — flows miss BH drops |
+| yes | yes | — | no | Not blackholed on this path |
 
 ---
 
@@ -249,7 +392,7 @@ They add or change the flow exporter destination to your host:
 ```bash
 watch -n2 'wc -l /tmp/goflow2/flows.json'
 
-tail -1 /tmp/goflow2/flows.json | python -m json.tool | head -20
+tail -1 /tmp/goflow2/flows.json | python3 -m json.tool | head -20
 ```
 
 **Pass layer A:** lines incrementing; JSON has `src_addr`, `packets`, `bytes`.
@@ -290,16 +433,14 @@ curl -o /tmp/publist.csv 'https://<bhr-host>/bhr/publist.csv'
 
 ### Minutes 25–40: Golden test
 
-For test IP `$TEST_IP`:
+Run the checks in [How to check prod blocklist, flows, and Redis](#how-to-check-prod-blocklist-flows-and-redis)
+for `$TEST_IP`. Short form:
 
 ```bash
-# 1. Flows mention the IP?
+export TEST_IP=<real-blocked-ip>
+grep "$TEST_IP" /tmp/publist.csv
 grep "$TEST_IP" /tmp/goflow2/flows.json | tail -3
-
-# 2. Redis counters via verify script
-python3 lab/test/verify.py --redis-host localhost --src "$TEST_IP" --label "golden"
-
-# 3. Or directly
+python3 lab/test/verify.py --redis-host localhost --src "$TEST_IP" --label golden
 redis-cli GET "qob:hits:${TEST_IP}:$(date -u +%Y%m%d)"
 ```
 
@@ -343,12 +484,12 @@ cp /tmp/goflow2/flows.json ~/qob-golden-test-$(date +%F).jsonl
 cp /tmp/publist.csv ~/publist-golden-$(date +%F).csv
 ```
 
-Screenshot `verify.py` output and neteng's Null0/discard counter.
+Screenshot `verify.py` or RedisInsight output and neteng's Null0/discard counter.
 
 Optional offline replay (after converting or using goflow2 JSONL):
 
 ```bash
-python -m jobs.compute_qob --source csv \
+python3 -m jobs.compute_qob --source csv \
   --blocklist ~/publist-golden-$(date +%F).csv \
   --flows <normalized-flow-csv> \
   --window 86400
