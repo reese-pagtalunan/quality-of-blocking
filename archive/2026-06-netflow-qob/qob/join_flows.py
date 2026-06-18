@@ -89,10 +89,10 @@ def correlate(
         if entry is None:
             continue
 
-        window_start = align_window(flow.start, window_seconds)
+        window_start = align_window(flow.start, window_seconds) # one row per IP per hour, not one row per flow
         key = (flow.src_addr, window_start)
         bucket = buckets.get(key)
-        if bucket is None:
+        if bucket is None: # create bucket if first flow for this (IP, window)
             bucket = ImpactCount(
                 ip=flow.src_addr,
                 window_start=window_start,
@@ -107,11 +107,11 @@ def correlate(
         bucket.raw_bytes += flow.bytes
         bucket.bh_hits += flow.packets * scale
         bucket.bh_bytes += flow.bytes * scale
-        bucket.flows += 1
-        if scale > 1:
+        bucket.flows += 1 # add flow counts to this bucket
+        if scale > 1: # tag the accuracy (sampled or unsampled depending on sampling rate == 1 or otherwise)
             bucket.sampling_rate = scale
             bucket.accuracy = ACCURACY_SAMPLED
         elif bucket.flows == 1:
             bucket.accuracy = ACCURACY_EXACT
 
-    return sorted(buckets.values(), key=lambda b: (b.ip, b.window_start))
+    return sorted(buckets.values(), key=lambda b: (b.ip, b.window_start)) # Turn the dict of buckets into a list, sorted by IP then time.

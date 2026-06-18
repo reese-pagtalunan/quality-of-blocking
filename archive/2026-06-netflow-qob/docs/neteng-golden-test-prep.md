@@ -1,6 +1,6 @@
 # Neteng 1-hour session — golden test prep
 
-Companion to [`plan-netflow-counting.md`](../plan-netflow-counting.md) Phase 0 / Phase 2.
+Companion to `[plan-netflow-counting.md](../plan-netflow-counting.md)` Phase 0 / Phase 2.
 Use this as a runbook before and during your meeting with neteng.
 
 **Goal:** In one hour, prove enough to greenlight production wiring — not perfect accuracy.
@@ -24,12 +24,14 @@ Use this as a runbook before and during your meeting with neteng.
 
 ## What "everything works" means (four layers)
 
-| Layer | What it proves | Needs goflow2? |
-| --- | --- | --- |
-| **A. Export reaches goflow2** | Routers → UDP 2055 → JSON lines appear | Yes |
-| **B. Consumer + join works** | BHR blocklist ⋈ `src_addr` → Redis `qob:hits:*` | Yes + publist + consumer running |
+
+| Layer                             | What it proves                                                       | Needs goflow2?                          |
+| --------------------------------- | -------------------------------------------------------------------- | --------------------------------------- |
+| **A. Export reaches goflow2**     | Routers → UDP 2055 → JSON lines appear                               | Yes                                     |
+| **B. Consumer + join works**      | BHR blocklist ⋈ `src_addr` → Redis `qob:hits:*`                      | Yes + publist + consumer running        |
 | **C. Counts are real BH traffic** | Blocked IP traffic shows up in flows *and* router drop counters move | Yes + blocked test IP + router counters |
-| **D. Production-ready accuracy** | Known sampling rate, multi-router plan, 1-week replay | Mostly async after the hour |
+| **D. Production-ready accuracy**  | Known sampling rate, multi-router plan, 1-week replay                | Mostly async after the hour             |
+
 
 ---
 
@@ -44,7 +46,7 @@ You **do not** need the blocklist before the meeting — that is a neteng discov
 
 ### 0. Python on macOS (one-time)
 
-macOS does not provide a `python` command — use **`python3`**. Homebrew Python also
+macOS does not provide a `python` command — use `**python3`**. Homebrew Python also
 blocks system-wide `pip install` (PEP 668), so use a venv in the repo root:
 
 ```bash
@@ -92,20 +94,22 @@ add it when you want a GUI instead of `verify.py` / `redis-cli`:
 docker run -d --name redisinsight -p 5540:5540 redis/redisinsight:latest
 ```
 
-Open **http://localhost:5540** → **Add Redis database**:
+Open **[http://localhost:5540](http://localhost:5540)** → **Add Redis database**:
 
-| Field | Value |
-| --- | --- |
-| Host | `host.docker.internal` (not `localhost` — Insight runs inside Docker) |
-| Port | `6379` |
-| Username / password | leave empty |
+
+| Field               | Value                                                                 |
+| ------------------- | --------------------------------------------------------------------- |
+| Host                | `host.docker.internal` (not `localhost` — Insight runs inside Docker) |
+| Port                | `6379`                                                                |
+| Username / password | leave empty                                                           |
+
 
 **Desktop alternative:** install [Redis Insight](https://redis.io/insight/) and connect
 to `127.0.0.1:6379` (no auth).
 
 In the UI:
 
-- **Browser** → filter keys `qob:*`
+- **Browser** → filter keys `qob:`*
 - `qob:hits:<IP>:YYYYMMDD` / `qob:bytes:...` — per-day counters
 - `qob:rank:YYYYMMDD` — sorted set of top blocked sources
 
@@ -138,11 +142,13 @@ search or saved export** (block lineage, STINGAR/BHR events, SIF feed, etc.).
 
 #### Where the blocklist might live (ask neteng to pick one)
 
-| Source | What to ask for | Golden-test use |
-| --- | --- | --- |
-| **BHR `publist.csv`** | Hostname + URL (or `query_limited` API + token) | `curl` → `/tmp/publist.csv` |
-| **Splunk** (common) | Index, sourcetype, field names for **current RTBH/BHR blocks** (not PAN denies) | Export search results → CSV → `/tmp/publist.csv` |
-| **On-the-spot snapshot** | Neteng or security exports from BHR UI / internal API | Copy file → `/tmp/publist.csv` |
+
+| Source                   | What to ask for                                                                 | Golden-test use                                  |
+| ------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------ |
+| **BHR `publist.csv`**    | Hostname + URL (or `query_limited` API + token)                                 | `curl` → `/tmp/publist.csv`                      |
+| **Splunk** (common)      | Index, sourcetype, field names for **current RTBH/BHR blocks** (not PAN denies) | Export search results → CSV → `/tmp/publist.csv` |
+| **On-the-spot snapshot** | Neteng or security exports from BHR UI / internal API                           | Copy file → `/tmp/publist.csv`                   |
+
 
 **Splunk vs BHR URL:** Splunk is often where operators *query* "what is blocked right
 now" even when BHR is the system of record. For this session you only need a **CSV
@@ -150,15 +156,17 @@ snapshot** the consumer can read — the lab does not connect to Splunk live.
 
 **Do not confuse two different Splunk uses:**
 
-| Splunk role | Purpose in golden test |
-| --- | --- |
-| **Blocklist export** | Feeds layer **B** — who is blocked (`/tmp/publist.csv`) |
+
+| Splunk role          | Purpose in golden test                                                              |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| **Blocklist export** | Feeds layer **B** — who is blocked (`/tmp/publist.csv`)                             |
 | **Flow / deny logs** | Fallback if routers **cannot** export to goflow2 — find where NetFlow already lands |
+
 
 Opening questions for neteng (blocklist):
 
 - Do we run **BHR** (or STINGAR → BHR) in production?
-- Is the **current block list** available as **`publist.csv`**, an internal API, or a **Splunk saved search**?
+- Is the **current block list** available as `**publist.csv`**, an internal API, or a **Splunk saved search**?
 - If Splunk: **index**, **sourcetype**, and which field holds the blocked **source IP/CIDR**? (Ask about **SIF / block-lineage** feeds if they use them.)
 - Who can run a **narrow export today** — neteng, security ops, or Splunk admin?
 - If none of the above: can they hand you a **CSV snapshot** during the meeting?
@@ -193,7 +201,7 @@ index=<bhr_or_stingar_index> sourcetype=<block_events>
 
 Or use the Splunk UI: run the search → **Export** → **CSV** → save as `/tmp/publist.csv`.
 
-**Minimum columns for the consumer** ([`qob/ingest/bhr_list.py`](../qob/ingest/bhr_list.py)):
+**Minimum columns for the consumer** (`[qob/ingest/bhr_list.py](../qob/ingest/bhr_list.py)`):
 `cidr` (or `ip` / `block`) is required; `indicator_id`, `added`, etc. are optional.
 Rename columns in Splunk or with a quick post-process if neteng's export uses different
 headers (`src_ip` → `cidr`, etc.).
@@ -269,14 +277,16 @@ Write down your **goflow2 host IP** — that is what neteng types into the flow 
 
 ## Lab vs golden test (do not mix them up)
 
-| | **Lab** ([`lab/README.md`](../lab/README.md)) | **Golden test** (this doc) |
-| --- | --- | --- |
-| Purpose | Prove **code/pipeline** | Prove **prod router + real blocks** |
-| Router | FRR in containerlab | Production RTBH router |
-| Test IP | `10.0.1.66` (fixture) | Real IP neteng picks |
-| Blocklist | `lab/consumer/blocklist.csv` | `/tmp/publist.csv` (BHR / Splunk) |
-| Flows | Lab `softflowd` → goflow2 in VM | Prod export → goflow2 on your Mac |
-| Pass | Counts rise after ExaBGP block | Prod flows + prod blocklist + Redis + Null0 |
+
+|           | **Lab** (`[lab/README.md](../lab/README.md)`) | **Golden test** (this doc)                  |
+| --------- | --------------------------------------------- | ------------------------------------------- |
+| Purpose   | Prove **code/pipeline**                       | Prove **prod router + real blocks**         |
+| Router    | FRR in containerlab                           | Production RTBH router                      |
+| Test IP   | `10.0.1.66` (fixture)                         | Real IP neteng picks                        |
+| Blocklist | `lab/consumer/blocklist.csv`                  | `/tmp/publist.csv` (BHR / Splunk)           |
+| Flows     | Lab `softflowd` → goflow2 in VM               | Prod export → goflow2 on your Mac           |
+| Pass      | Counts rise after ExaBGP block                | Prod flows + prod blocklist + Redis + Null0 |
+
 
 **Golden pass** = a **real** blocked IP appears in **prod** flows, **prod** blocklist,
 and Redis, and neteng sees Null0/discard counters move.
@@ -345,13 +355,15 @@ show ip route <TEST_IP>
 
 ### All-four pass matrix
 
-| Blocklist | Flows | Redis | Null0 | Verdict |
-| --- | --- | --- | --- | --- |
-| yes | yes (`src_addr`) | yes | yes | **Golden pass** |
-| yes | yes | no | — | Join / consumer problem |
-| no | yes | no | — | IP not on blocklist |
-| — | no | — | yes | Accounting problem — flows miss BH drops |
-| yes | yes | — | no | Not blackholed on this path |
+
+| Blocklist | Flows            | Redis | Null0 | Verdict                                  |
+| --------- | ---------------- | ----- | ----- | ---------------------------------------- |
+| yes       | yes (`src_addr`) | yes   | yes   | **Golden pass**                          |
+| yes       | yes              | no    | —     | Join / consumer problem                  |
+| no        | yes              | no    | —     | IP not on blocklist                      |
+| —         | no               | —     | yes   | Accounting problem — flows miss BH drops |
+| yes       | yes              | —     | no    | Not blackholed on this path              |
+
 
 ---
 
@@ -365,10 +377,10 @@ Get these on paper:
 2. **Sampling rate** on that exporter (1 = unsampled, 1000 = 1:1000): ___________
 3. **Can you point export at `<your-goflow2-ip>:2055` today** (even temporarily)? Y / N
 4. **Blocked-IP list** — where do we get it today?
-   - BHR `publist.csv` URL: ___________
-   - **Splunk** index / sourcetype / blocked-IP field: ___________
-   - Saved search or export owner (neteng / security / Splunk admin): ___________
-   - Fallback CSV snapshot contact: ___________
+  - BHR `publist.csv` URL: ___________
+  - **Splunk** index / sourcetype / blocked-IP field: ___________
+  - Saved search or export owner (neteng / security / Splunk admin): ___________
+  - Fallback CSV snapshot contact: ___________
 
 If **#3 is No**, spend the hour finding **where flow already goes** (Splunk, Kentik, nfdump, ES). You cannot complete the golden test in-room without a flow path to your collector.
 
@@ -384,7 +396,7 @@ BHR hostname but can often point you at the index or run the export in the room.
 They add or change the flow exporter destination to your host:
 
 - Protocol: **NetFlow v9** (IPFIX also works on the same port)
-- Destination: **`<goflow2-host-ip>:2055`**
+- Destination: `**<goflow2-host-ip>:2055`**
 - Ingress monitors on **attacker-facing interfaces** (not only internal links)
 
 **You watch** (do not wait for QoB yet):
@@ -455,12 +467,14 @@ Use platform equivalents on non-Cisco gear (discard counter, confirm blackhole r
 
 #### Decision table
 
-| Result | Verdict |
-| --- | --- |
-| goflow2 has `$TEST_IP` as **`src_addr`**, Redis `bh_hits > 0`, Null0/discard counters moved | **Pipeline works for BH counting** — proceed with Phase 2 production wiring |
-| goflow2 has traffic but Redis = 0 | Join problem: IP not on blocklist, wrong time window, stale Splunk export, or consumer not running |
-| goflow2 has **no** `$TEST_IP` but Null0 moved | **Accounting/capture problem** — flows do not see BH drops on this platform; goflow2 alone will not fix it |
-| goflow2 has `$TEST_IP` but Null0 did not move | Traffic is not actually blackholed on this path (wrong router, not blocked yet, asymmetric path) |
+
+| Result                                                                                      | Verdict                                                                                                    |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| goflow2 has `$TEST_IP` as `**src_addr**`, Redis `bh_hits > 0`, Null0/discard counters moved | **Pipeline works for BH counting** — proceed with Phase 2 production wiring                                |
+| goflow2 has traffic but Redis = 0                                                           | Join problem: IP not on blocklist, wrong time window, stale Splunk export, or consumer not running         |
+| goflow2 has **no** `$TEST_IP` but Null0 moved                                               | **Accounting/capture problem** — flows do not see BH drops on this platform; goflow2 alone will not fix it |
+| goflow2 has `$TEST_IP` but Null0 did not move                                               | Traffic is not actually blackholed on this path (wrong router, not blocked yet, asymmetric path)           |
+
 
 ---
 
@@ -548,8 +562,9 @@ Null0 accounting on hardware routers**, and **Splunk index/sourcetype for the bl
 
 ## Related docs
 
-- [`plan-netflow-counting.md`](../plan-netflow-counting.md) — full Part 1 plan
-- [`lab/README.md`](../lab/README.md) — containerlab A/B test (lab validates code, not prod ASIC accounting)
-- [`docs/black_hole_logging.md`](./black_hole_logging.md) — Cisco FNF / Null0 monitoring reference for neteng
-- [`plan-fw-denies.md`](../plan-fw-denies.md) — Splunk / SIF context for block and deny lineage
-- [`config/sources.yaml.example`](../config/sources.yaml.example) — production config sketch
+- `[plan-netflow-counting.md](../plan-netflow-counting.md)` — full Part 1 plan
+- `[lab/README.md](../lab/README.md)` — containerlab A/B test (lab validates code, not prod ASIC accounting)
+- `[docs/black_hole_logging.md](./black_hole_logging.md)` — Cisco FNF / Null0 monitoring reference for neteng
+- `[plan-fw-denies.md](../plan-fw-denies.md)` — Splunk / SIF context for block and deny lineage
+- `[config/sources.yaml.example](../config/sources.yaml.example)` — production config sketch
+
