@@ -1,15 +1,23 @@
-"""Load the BHR blocked-IP list (the authoritative join key).
+"""Load a blocked-IP list (the join key for QoB).
 
-Supports two replay/production sources:
+This is simply a CSV or JSON file that answers: *which IPs are blocked, when,
+and which detection caused it?* QoB joins NetFlow against these rows — only
+flows from a listed source IP during an active block window count toward
+``bh_hits`` / ``bh_bytes``.
 
-* CSV  — e.g. BHR's ``/bhr/publist.csv`` feed, or a captured snapshot. Expected
-  headers: ``cidr,indicator_id,source,why,added,removed,ident`` (extra columns
-  ignored; missing optional columns tolerated).
-* JSON — e.g. the ``/bhr/api/query_limited`` endpoint, a list of objects or an
-  object with a ``"results"``/``"blocks"`` list.
+The module name ``bhr_list`` is historical. The file is **not** defined by BHR
+(the Black Hole Router). In production it might be a STINGAR export, a Splunk
+CSV snapshot, a captured ``publist.csv``, or any file with the expected columns.
 
-For Phase 1 we read from local files. A future ``poll`` can fetch the live
-endpoint and hand the parsed rows to :func:`from_rows`.
+Supported formats:
+
+* CSV — headers like ``cidr,indicator_id,source,why,added,removed,ident``
+  (extra columns ignored; optional columns tolerated).
+* JSON — a list of objects, or an object with a ``"results"`` / ``"blocks"`` /
+  ``"data"`` list.
+
+Phase 1 reads local paths only. A future ``poll`` can fetch a remote URL and
+hand the parsed rows to :func:`from_rows`.
 """
 
 from __future__ import annotations
@@ -20,7 +28,7 @@ from pathlib import Path
 
 from ..models import BlockEntry
 
-# Map alternative field names (BHR API / publist) onto our canonical row keys.
+# Map alternative column names onto our canonical row keys.
 FIELD_ALIASES = {
     "cidr": "cidr",
     "block": "cidr",
